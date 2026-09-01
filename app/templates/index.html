@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Gitora | AI GitHub Repository Analyzer</title>
+
+
+    <!-- Main CSS -->
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+
+    <!-- Font Awesome -->
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+
+    <!-- Google Font -->
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet">
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     NAVBAR
+===================================================== -->
+
+<header>
+
+    <nav class="navbar">
+
+
+        <div class="logo">
+
+            <i class="fa-brands fa-github"></i>
+
+            <h2>Gitora</h2>
+
+        </div>
+
+
+        <ul class="nav-links">
+
+            <li>
+                <a href="#">Home</a>
+            </li>
+
+            <li>
+                <a href="#features">Features</a>
+            </li>
+
+            <li>
+                <a href="#how">How it Works</a>
+            </li>
+
+            <li>
+                <a href="#about">About</a>
+            </li>
+
+            <li>
+                <a href="#contact">Contact</a>
+            </li>
+
+        </ul>
+
+
+        <button class="theme-btn"
+                id="themeToggle">
+
+            <i class="fa-solid fa-moon"></i>
+
+        </button>
+
+    </nav>
+
+</header>
+
+
+
+<!-- =====================================================
+     HERO SECTION
+===================================================== -->
+
+<section class="hero">
+
+
+    <!-- LEFT SIDE -->
+
+    <div class="hero-content">
+
+
+        <h1>
+
+            Understand Any
+
+            <span>GitHub Repository</span>
+
+            with AI
+
+        </h1>
+
+
+        <p>
+
+            Paste any public GitHub repository link.
+
+            Gitora will analyze the entire project,
+
+            explain every module,
+
+            generate professional documentation,
+
+            create mind maps,
+
+            and answer all your questions using AI.
+
+        </p>
+
+
+        <!-- REPOSITORY INPUT -->
+
+        <form action="/analyze"
+              method="POST">
+
+
+            <div class="input-box">
+
+                <i class="fa-brands fa-github"></i>
+
+
+                <input
+
+                    type="text"
+
+                    name="repo_url"
+
+                    placeholder="https://github.com/username/project"
+
+                    required
+
+                >
+
+            </div>
+
+
+            <button type="submit"
+                    class="analyze-btn">
+
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+                Analyze Repository
+
+            </button>
+
+
+        </form>
+
+
+        <!-- HERO BUTTONS -->
+
+        <div class="hero-buttons">
+
+
+            <a href="#features"
+               class="secondary-btn">
+
+                Explore Features
+
+            </a>
+
+
+            <a href="#how"
+               class="secondary-btn">
+
+                Documentation
+
+            </a>
+
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =================================================
+         RIGHT SIDE IMAGE
+    ================================================= -->
+
+   <div class="hero-image">
+
+    <div class="hero-tagline-box">
+
+        <h2>Code In. Clarity Out.</h2>
+
+        <p>Decode. Understand. Build.</p>
+
+    </div>
+
+    <img
+        src="{{ url_for('static', filename='images/hero.png') }}"
+        alt="Gitora AI Repository Analyzer"
+    >
+
+</div>
+</section>
+
+
+
+<!-- =====================================================
+     FEATURES SECTION
+===================================================== -->
+
+<section class="features"
+         id="features">
+
+
+    <h2 class="section-title">
+
+        Powerful Features
+
+    </h2>
+
+
+    <p class="section-subtitle">
+
+        Everything you need to understand any GitHub repository using AI.
+
+    </p>
+
+
+    <div class="feature-container">
+
+
+        <!-- FEATURE 1 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-code"></i>
+
+
+            <h3>
+
+                Repository Analysis
+
+            </h3>
+
+
+            <p>
+
+                AI deeply analyzes the repository structure,
+
+                source code and architecture.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- FEATURE 2 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-brain"></i>
+
+
+            <h3>
+
+                AI Explanations
+
+            </h3>
+
+
+            <p>
+
+                Understand difficult code in simple language
+
+                with AI generated explanations.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- FEATURE 3 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-sitemap"></i>
+
+
+            <h3>
+
+                Architecture
+
+            </h3>
+
+
+            <p>
+
+                Automatically visualize project architecture
+
+                and component relationships.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- FEATURE 4 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-diagram-project"></i>
+
+
+            <h3>
+
+                Mind Maps
+
+            </h3>
+
+
+            <p>
+
+                Generate project mind maps
+
+                to understand workflow quickly.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- FEATURE 5 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+
+            <h3>
+
+                PDF Reports
+
+            </h3>
+
+
+            <p>
+
+                Download beautifully formatted
+
+                AI generated reports instantly.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- FEATURE 6 -->
+
+        <div class="feature-card">
+
+            <i class="fa-solid fa-comments"></i>
+
+
+            <h3>
+
+                Repository AI Chat
+
+            </h3>
+
+
+            <p>
+
+                Ask questions about the repository
+
+                and receive contextual answers.
+
+            </p>
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     HOW IT WORKS
+===================================================== -->
+
+<section class="how"
+         id="how">
+
+
+    <h2 class="section-title">
+
+        How Gitora Works
+
+    </h2>
+
+
+    <div class="steps">
+
+
+        <!-- STEP 1 -->
+
+        <div class="step">
+
+            <span>1</span>
+
+
+            <h3>
+
+                Paste Repository Link
+
+            </h3>
+
+
+            <p>
+
+                Paste any public GitHub repository URL.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- STEP 2 -->
+
+        <div class="step">
+
+            <span>2</span>
+
+
+            <h3>
+
+                AI Analysis
+
+            </h3>
+
+
+            <p>
+
+                Gitora scans every important file
+
+                and understands the project.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- STEP 3 -->
+
+        <div class="step">
+
+            <span>3</span>
+
+
+            <h3>
+
+                Generate Report
+
+            </h3>
+
+
+            <p>
+
+                Architecture, APIs, Database,
+
+                Authentication and more.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- STEP 4 -->
+
+        <div class="step">
+
+            <span>4</span>
+
+
+            <h3>
+
+                Ask AI
+
+            </h3>
+
+
+            <p>
+
+                Chat with the repository
+
+                like talking to its developer.
+
+            </p>
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     STATISTICS
+===================================================== -->
+
+<section class="stats">
+
+
+    <div class="stat-card">
+
+        <h2>1000+</h2>
+
+        <p>
+
+            Repositories Analyzed
+
+        </p>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <h2>50+</h2>
+
+        <p>
+
+            Technologies Supported
+
+        </p>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <h2>10K+</h2>
+
+        <p>
+
+            AI Answers Generated
+
+        </p>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <h2>99%</h2>
+
+        <p>
+
+            Analysis Accuracy
+
+        </p>
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     WHY GITORA
+===================================================== -->
+
+<section class="why"
+         id="about">
+
+
+    <h2 class="section-title">
+
+        Why Choose Gitora?
+
+    </h2>
+
+
+    <div class="why-container">
+
+
+        <!-- WITHOUT GITORA -->
+
+        <div class="why-box">
+
+
+            <h3>
+
+                Without Gitora
+
+            </h3>
+
+
+            <ul>
+
+
+                <li>
+
+                    Read hundreds of files manually
+
+                </li>
+
+
+                <li>
+
+                    Spend hours understanding architecture
+
+                </li>
+
+
+                <li>
+
+                    Difficult onboarding
+
+                </li>
+
+
+                <li>
+
+                    No visual documentation
+
+                </li>
+
+
+                <li>
+
+                    Hard to locate APIs & authentication
+
+                </li>
+
+
+            </ul>
+
+
+        </div>
+
+
+
+        <!-- WITH GITORA -->
+
+        <div class="why-box">
+
+
+            <h3>
+
+                With Gitora
+
+            </h3>
+
+
+            <ul>
+
+
+                <li>
+
+                    AI explains everything instantly
+
+                </li>
+
+
+                <li>
+
+                    Automatic architecture diagrams
+
+                </li>
+
+
+                <li>
+
+                    Repository-specific AI Chat
+
+                </li>
+
+
+                <li>
+
+                    Professional PDF reports
+
+                </li>
+
+
+                <li>
+
+                    Easy learning roadmap
+
+                </li>
+
+
+            </ul>
+
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     FAQ SECTION
+===================================================== -->
+
+<section class="faq">
+
+
+    <h2 class="section-title">
+
+        Frequently Asked Questions
+
+    </h2>
+
+
+    <div class="faq-container">
+
+
+        <!-- FAQ 1 -->
+
+        <div class="faq-item">
+
+
+            <h3>
+
+                Can Gitora analyze any GitHub repository?
+
+            </h3>
+
+
+            <p>
+
+                Yes. Gitora supports public GitHub repositories
+
+                and generates AI-powered explanations.
+
+            </p>
+
+
+        </div>
+
+
+
+        <!-- FAQ 2 -->
+
+        <div class="faq-item">
+
+
+            <h3>
+
+                Does Gitora generate PDFs?
+
+            </h3>
+
+
+            <p>
+
+                Yes. Every repository analysis can be
+
+                downloaded as a professional PDF report.
+
+            </p>
+
+
+        </div>
+
+
+
+        <!-- FAQ 3 -->
+
+        <div class="faq-item">
+
+
+            <h3>
+
+                Can I ask questions about the repository?
+
+            </h3>
+
+
+            <p>
+
+                Yes. Gitora includes an AI chat that answers
+
+                repository-specific questions.
+
+            </p>
+
+
+        </div>
+
+
+
+        <!-- FAQ 4 -->
+
+        <div class="faq-item">
+
+
+            <h3>
+
+                Does Gitora support beginners?
+
+            </h3>
+
+
+            <p>
+
+                Absolutely. AI explanations are adapted
+
+                to your knowledge level.
+
+            </p>
+
+
+        </div>
+
+
+    </div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
+<footer id="contact">
+
+
+    <div class="footer-container">
+
+
+        <h2>
+
+            Gitora
+
+        </h2>
+
+
+        <p>
+
+            AI Powered GitHub Repository Analyzer
+
+        </p>
+
+
+        <div class="footer-links">
+
+
+            <a href="#">
+
+                Home
+
+            </a>
+
+
+            <a href="#features">
+
+                Features
+
+            </a>
+
+
+            <a href="#about">
+
+                About
+
+            </a>
+
+
+            <a href="#how">
+
+                How It Works
+
+            </a>
+
+
+            <a href="#contact">
+
+                Contact
+
+            </a>
+
+
+        </div>
+
+
+
+        <div class="social-icons">
+
+
+            <a href="#">
+
+                <i class="fab fa-github"></i>
+
+            </a>
+
+
+            <a href="#">
+
+                <i class="fab fa-linkedin"></i>
+
+            </a>
+
+
+            <a href="#">
+
+                <i class="fab fa-twitter"></i>
+
+            </a>
+
+
+            <a href="#">
+
+                <i class="fab fa-discord"></i>
+
+            </a>
+
+
+        </div>
+
+
+        <p class="copyright">
+
+            © 2026 Gitora. All Rights Reserved.
+
+        </p>
+
+
+    </div>
+
+
+</footer>
+
+
+
+<!-- =====================================================
+     BACK TO TOP
+===================================================== -->
+
+<button id="topBtn">
+
+    <i class="fa-solid fa-arrow-up"></i>
+
+</button>
+
+
+
+<!-- JAVASCRIPT -->
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+
+</body>
+
+</html>

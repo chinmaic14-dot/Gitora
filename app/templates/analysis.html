@@ -1,0 +1,3095 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>{{ repository.name }} | Gitora AI</title>
+
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}">
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet">
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+
+    margin: 0;
+
+    background:
+        radial-gradient(
+            circle at 10% 10%,
+            rgba(99,102,241,.12),
+            transparent 30%
+        ),
+        #020617;
+
+    color: #e2e8f0;
+
+    font-family: Poppins, sans-serif;
+}
+
+.analysis-page {
+
+    width: 92%;
+
+    max-width: 1400px;
+
+    margin: auto;
+
+    padding: 40px 0 100px;
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.analysis-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+
+    padding: 25px;
+
+    margin-bottom: 30px;
+
+    border-radius: 20px;
+
+    background: rgba(15,23,42,.75);
+
+    border: 1px solid rgba(255,255,255,.08);
+
+    backdrop-filter: blur(20px);
+}
+
+.repo-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+}
+
+.repo-icon {
+
+    width: 55px;
+
+    height: 55px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 15px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6366f1,
+            #38bdf8
+        );
+
+    font-size: 25px;
+}
+
+.repo-title h1 {
+
+    margin: 0;
+
+    font-size: 26px;
+}
+
+.repo-title p {
+
+    margin: 5px 0 0;
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.repo-link {
+
+    color: #38bdf8;
+
+    text-decoration: none;
+}
+
+.repo-link:hover {
+
+    color: #7dd3fc;
+}
+
+
+/* =====================================================
+   SECTIONS
+===================================================== */
+
+.section {
+
+    margin-top: 30px;
+
+    padding: 30px;
+
+    border-radius: 20px;
+
+    background: rgba(15,23,42,.72);
+
+    border: 1px solid rgba(255,255,255,.07);
+
+    backdrop-filter: blur(18px);
+}
+
+.section-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 25px;
+}
+
+.section-header h2 {
+
+    margin: 0;
+
+    font-size: 21px;
+}
+
+.section-header h2 i {
+
+    color: #38bdf8;
+
+    margin-right: 8px;
+}
+
+.file-count {
+
+    color: #38bdf8;
+
+    font-size: 13px;
+}
+
+
+/* =====================================================
+   FILE SELECTION
+===================================================== */
+
+.file-controls {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    align-items: center;
+
+    margin-bottom: 20px;
+}
+
+.file-controls button {
+
+    border: none;
+
+    padding: 10px 15px;
+
+    border-radius: 9px;
+
+    background: #1e293b;
+
+    color: #e2e8f0;
+
+    cursor: pointer;
+
+    font-family: inherit;
+}
+
+.file-controls button:hover {
+
+    background: #334155;
+}
+
+#selectedCount {
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.file-list {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap: 10px;
+
+    max-height: 500px;
+
+    overflow-y: auto;
+}
+
+.file-item {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 13px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(2,6,23,.55);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+
+    cursor: pointer;
+
+    font-size: 13px;
+}
+
+.file-item:hover {
+
+    border-color:
+        rgba(56,189,248,.35);
+}
+
+.file-item i {
+
+    color: #818cf8;
+}
+
+.file-item input {
+
+    accent-color: #6366f1;
+}
+
+.save-files-btn,
+.run-ai-btn,
+.analyze-file-btn,
+.pdf-btn {
+
+    border: none;
+
+    color: white;
+
+    font-family: inherit;
+
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.save-files-btn {
+
+    margin-top: 20px;
+
+    padding: 13px 20px;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6366f1,
+            #38bdf8
+        );
+}
+
+
+/* =====================================================
+   AI ANALYSIS
+===================================================== */
+
+.ai-analysis-card {
+
+    padding: 30px;
+
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(99,102,241,.12),
+            rgba(56,189,248,.06)
+        );
+
+    border:
+        1px solid
+        rgba(99,102,241,.2);
+}
+
+.ai-analysis-top {
+
+    display: flex;
+
+    gap: 15px;
+
+    align-items: center;
+
+    margin-bottom: 20px;
+}
+
+.ai-icon {
+
+    width: 50px;
+
+    height: 50px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 14px;
+
+    background:
+        rgba(129,140,248,.15);
+
+    color: #a78bfa;
+
+    font-size: 22px;
+}
+
+.ai-analysis-top h3 {
+
+    margin: 0;
+}
+
+.ai-analysis-top p {
+
+    margin: 4px 0 0;
+
+    color: #94a3b8;
+
+    font-size: 13px;
+}
+
+.analysis-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap: 18px;
+}
+
+.analysis-box {
+
+    padding: 22px;
+
+    border-radius: 14px;
+
+    background:
+        rgba(2,6,23,.45);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+}
+
+.analysis-box h3 {
+
+    margin-top: 0;
+
+    font-size: 16px;
+
+    color: #38bdf8;
+}
+
+.analysis-box p {
+
+    color: #cbd5e1;
+
+    line-height: 1.8;
+
+    font-size: 13px;
+
+    white-space: pre-wrap;
+}
+
+.run-ai-btn {
+
+    margin-top: 25px;
+
+    padding: 13px 22px;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #7c3aed,
+            #2563eb
+        );
+}
+
+.run-ai-btn:hover {
+
+    opacity: .9;
+}
+
+.run-ai-btn:disabled,
+.analyze-file-btn:disabled {
+
+    opacity: .6;
+
+    cursor: wait;
+}
+
+#aiStatus {
+
+    margin-top: 12px;
+
+    color: #38bdf8;
+}
+
+
+/* =====================================================
+   API REQUESTS
+===================================================== */
+
+.requests-list {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+}
+
+.request-item {
+
+    padding: 16px;
+
+    border-radius: 12px;
+
+    background:
+        rgba(2,6,23,.45);
+
+    border:
+        1px solid
+        rgba(56,189,248,.12);
+}
+
+.request-item strong {
+
+    color: #38bdf8;
+
+    display: block;
+
+    margin-bottom: 6px;
+}
+
+.request-item p {
+
+    margin: 4px 0;
+
+    color: #cbd5e1;
+
+    font-size: 13px;
+
+    line-height: 1.7;
+}
+
+
+/* =====================================================
+   FILE ANALYSIS
+===================================================== */
+
+.file-analysis-card {
+
+    margin-bottom: 18px;
+
+    padding: 22px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(2,6,23,.5);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+}
+
+.file-analysis-title {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 18px;
+}
+
+.file-analysis-name {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+}
+
+.file-analysis-title i {
+
+    color: #818cf8;
+}
+
+.file-analysis-title h3 {
+
+    margin: 0;
+
+    font-size: 16px;
+
+    word-break: break-word;
+}
+
+.analyze-file-btn {
+
+    padding: 9px 14px;
+
+    border-radius: 9px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #7c3aed,
+            #2563eb
+        );
+
+    font-size: 12px;
+}
+
+.file-analysis-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap: 12px;
+}
+
+.explanation-item {
+
+    padding: 15px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(30,41,59,.55);
+}
+
+.explanation-item strong {
+
+    display: block;
+
+    color: #38bdf8;
+
+    margin-bottom: 7px;
+
+    font-size: 12px;
+
+    text-transform: uppercase;
+}
+
+.explanation-item p {
+
+    margin: 0;
+
+    color: #cbd5e1;
+
+    font-size: 13px;
+
+    line-height: 1.7;
+
+    white-space: pre-wrap;
+}
+
+.break-box {
+
+    margin-top: 12px;
+
+    padding: 15px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(239,68,68,.06);
+
+    border:
+        1px solid
+        rgba(239,68,68,.15);
+}
+
+.break-box strong {
+
+    color: #f87171;
+}
+
+.break-box p {
+
+    color: #cbd5e1;
+
+    font-size: 13px;
+
+    line-height: 1.7;
+}
+
+
+/* =====================================================
+   SOURCE CODE
+===================================================== */
+
+.source-file {
+
+    margin-bottom: 20px;
+
+    border-radius: 14px;
+
+    overflow: hidden;
+
+    border:
+        1px solid
+        rgba(255,255,255,.07);
+}
+
+.source-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 13px 18px;
+
+    background: #0f172a;
+}
+
+.source-header span {
+
+    font-size: 13px;
+
+    color: #cbd5e1;
+}
+
+.source-header i {
+
+    color: #818cf8;
+
+    margin-right: 7px;
+}
+
+pre {
+
+    margin: 0;
+
+    padding: 20px;
+
+    max-height: 500px;
+
+    overflow: auto;
+
+    background: #020617;
+
+    color: #cbd5e1;
+
+    font-size: 12px;
+
+    line-height: 1.7;
+}
+
+
+/* =====================================================
+   CHAT
+===================================================== */
+
+.chat-box {
+
+    min-height: 250px;
+
+    max-height: 500px;
+
+    overflow-y: auto;
+
+    padding: 20px;
+
+    margin-bottom: 20px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(2,6,23,.5);
+}
+
+.chat-message {
+
+    max-width: 85%;
+
+    padding: 14px 17px;
+
+    margin-bottom: 15px;
+
+    border-radius: 13px;
+
+    line-height: 1.7;
+
+    font-size: 13px;
+
+    white-space: pre-wrap;
+}
+
+.chat-message.ai {
+
+    background:
+        rgba(99,102,241,.12);
+
+    border:
+        1px solid
+        rgba(99,102,241,.15);
+}
+
+.chat-message.user {
+
+    margin-left: auto;
+
+    background:
+        rgba(56,189,248,.1);
+
+    border:
+        1px solid
+        rgba(56,189,248,.12);
+}
+
+.chat-input {
+
+    display: flex;
+
+    gap: 10px;
+}
+
+.chat-input input {
+
+    flex: 1;
+
+    padding: 15px;
+
+    border-radius: 10px;
+
+    border:
+        1px solid
+        rgba(255,255,255,.1);
+
+    outline: none;
+
+    background: #0f172a;
+
+    color: white;
+
+    font-family: inherit;
+}
+
+.chat-input input:focus {
+
+    border-color:
+        rgba(56,189,248,.5);
+}
+
+.chat-input button {
+
+    width: 55px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6366f1,
+            #38bdf8
+        );
+
+    color: white;
+
+    cursor: pointer;
+}
+
+
+/* =====================================================
+   PDF
+===================================================== */
+
+.pdf-section {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 20px;
+}
+
+.pdf-section h2 {
+
+    margin-bottom: 5px;
+}
+
+.pdf-btn {
+
+    min-width: 220px;
+
+    padding: 14px 22px;
+
+    border-radius: 10px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ef4444,
+            #f97316
+        );
+
+    transition: .2s;
+}
+
+.pdf-btn:hover {
+
+    opacity: .9;
+
+    transform: translateY(-1px);
+}
+
+.pdf-btn:disabled {
+
+    opacity: .65;
+
+    cursor: wait;
+
+    transform: none;
+}
+
+
+/* =====================================================
+   PDF STATUS
+===================================================== */
+
+#pdfStatus {
+
+    margin-top: 10px;
+
+    color: #38bdf8;
+
+    font-size: 13px;
+
+    display: none;
+}
+
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media(max-width:800px) {
+
+    .analysis-grid,
+    .file-analysis-grid,
+    .file-list {
+
+        grid-template-columns: 1fr;
+    }
+
+    .analysis-header,
+    .pdf-section {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+    .file-analysis-title {
+
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+    .chat-message {
+
+        max-width: 100%;
+    }
+
+    .analysis-page {
+
+        width: 94%;
+
+        padding-top: 20px;
+    }
+
+    .section {
+
+        padding: 20px;
+    }
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<div class="analysis-page">
+
+
+<!-- =====================================================
+     REPOSITORY HEADER
+===================================================== -->
+
+<header class="analysis-header">
+
+    <div class="repo-title">
+
+        <div class="repo-icon">
+
+            <i class="fa-brands fa-github"></i>
+
+        </div>
+
+        <div>
+
+            <h1>
+                {{ repository.name }}
+            </h1>
+
+            <p>
+
+                {{ repository.full_name }}
+
+                {% if repository.default_branch %}
+
+                    • {{ repository.default_branch }}
+
+                {% endif %}
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <a
+        href="https://github.com/{{ repository.full_name }}"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="repo-link"
+    >
+
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+
+        Open GitHub
+
+    </a>
+
+</header>
+
+
+<!-- =====================================================
+     FILE SELECTION
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-folder-tree"></i>
+
+            Repository Files
+
+        </h2>
+
+        <span class="file-count">
+
+            {{ files|length }} files
+
+        </span>
+
+    </div>
+
+
+    <form
+        action="{{ url_for('main.save_files') }}"
+        method="POST"
+    >
+
+        <input
+            type="hidden"
+            name="repository"
+            value="{{ repository.full_name }}"
+        >
+
+
+        <div class="file-controls">
+
+            <button
+                type="button"
+                onclick="selectAllFiles()"
+            >
+
+                <i class="fa-solid fa-check-double"></i>
+
+                Select All
+
+            </button>
+
+
+            <button
+                type="button"
+                onclick="deselectAllFiles()"
+            >
+
+                <i class="fa-solid fa-xmark"></i>
+
+                Deselect All
+
+            </button>
+
+
+            <span id="selectedCount">
+
+                0 files selected
+
+            </span>
+
+        </div>
+
+
+        <div class="file-list">
+
+            {% for file in files %}
+
+            <label class="file-item">
+
+                <input
+                    type="checkbox"
+                    name="selected_files"
+                    value="{{ file.path }}"
+                    {% if file.path in saved_files %}
+                        checked
+                    {% endif %}
+                    onchange="updateSelectedCount()"
+                >
+
+                <i class="fa-regular fa-file-code"></i>
+
+                <span>
+                    {{ file.path }}
+                </span>
+
+            </label>
+
+            {% endfor %}
+
+        </div>
+
+
+        <button
+            type="submit"
+            class="save-files-btn"
+        >
+
+            <i class="fa-solid fa-floppy-disk"></i>
+
+            Save Selected Files
+
+        </button>
+
+    </form>
+
+</section>
+
+
+<!-- =====================================================
+     OVERALL AI ANALYSIS
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-brain"></i>
+
+            Gitora AI — Project Understanding
+
+        </h2>
+
+    </div>
+
+
+    <div class="ai-analysis-card">
+
+        <div class="ai-analysis-top">
+
+            <div class="ai-icon">
+
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+            </div>
+
+            <div>
+
+                <h3>
+                    Overall Project Analysis
+                </h3>
+
+                <p>
+                    Gitora AI reads the selected source files
+                    and explains how the project works.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="analysis-grid">
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-lightbulb"></i>
+
+                    What This Project Does
+
+                </h3>
+
+                <p id="projectSummary">
+
+                    Select files and click Analyze With Gitora AI.
+
+                </p>
+
+            </div>
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-layer-group"></i>
+
+                    Technology Stack
+
+                </h3>
+
+                <p id="technologyStack">
+
+                    Waiting for AI analysis.
+
+                </p>
+
+            </div>
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-sitemap"></i>
+
+                    Architecture
+
+                </h3>
+
+                <p id="architecture">
+
+                    Waiting for AI analysis.
+
+                </p>
+
+            </div>
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-link"></i>
+
+                    Dependencies
+
+                </h3>
+
+                <p id="dependencies">
+
+                    Waiting for AI analysis.
+
+                </p>
+
+            </div>
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-database"></i>
+
+                    Database
+
+                </h3>
+
+                <p id="database">
+
+                    Waiting for AI analysis.
+
+                </p>
+
+            </div>
+
+
+            <div class="analysis-box">
+
+                <h3>
+
+                    <i class="fa-solid fa-shield-halved"></i>
+
+                    Authentication
+
+                </h3>
+
+                <p id="authentication">
+
+                    Waiting for AI analysis.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <button
+            type="button"
+            class="run-ai-btn"
+            id="runAIButton"
+            onclick="runFullAIAnalysis()"
+        >
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+            Analyze With Gitora AI
+
+        </button>
+
+
+        <p id="aiStatus"></p>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     3 WAYS TO REBUILD
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-code-branch"></i>
+
+            3 Ways to Rebuild This Project
+
+        </h2>
+
+        <span class="file-count">
+            AI Generated
+        </span>
+
+    </div>
+
+
+    <div
+        class="analysis-grid"
+        id="rebuildWays"
+    >
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-1"></i>
+
+                Approach 1
+
+            </h3>
+
+            <p>
+                Waiting for Gitora AI analysis.
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-2"></i>
+
+                Approach 2
+
+            </h3>
+
+            <p>
+                Waiting for Gitora AI analysis.
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-3"></i>
+
+                Approach 3
+
+            </h3>
+
+            <p>
+                Waiting for Gitora AI analysis.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     API REQUESTS
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-globe"></i>
+
+            Important API Requests
+
+        </h2>
+
+        <span class="file-count">
+            AI detected
+        </span>
+
+    </div>
+
+
+    <div
+        class="requests-list"
+        id="importantRequests"
+    >
+
+        <div class="request-item">
+
+            <strong>
+                Waiting for AI analysis
+            </strong>
+
+            <p>
+                Click "Analyze With Gitora AI" to identify
+                important external API requests.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     FILE-BY-FILE ANALYSIS
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-file-circle-check"></i>
+
+            File-by-File Explanation
+
+        </h2>
+
+        <span class="file-count">
+
+            {{ source_files|length }} selected
+
+        </span>
+
+    </div>
+
+
+    {% if source_files %}
+
+        {% for file in source_files %}
+
+        <div
+            class="file-analysis-card"
+            data-file-path="{{ file.path }}"
+        >
+
+            <div class="file-analysis-title">
+
+                <div class="file-analysis-name">
+
+                    <i class="fa-solid fa-file-code"></i>
+
+                    <h3>
+                        {{ file.path }}
+                    </h3>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="analyze-file-btn"
+                    onclick="analyzeSingleFile(this)"
+                    data-file="{{ file.path }}"
+                >
+
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+                    Analyze with AI
+
+                </button>
+
+            </div>
+
+
+            <div class="file-analysis-grid">
+
+                <div class="explanation-item">
+
+                    <strong>
+                        What it does
+                    </strong>
+
+                    <p class="file-does">
+                        Click Analyze with AI.
+                    </p>
+
+                </div>
+
+
+                <div class="explanation-item">
+
+                    <strong>
+                        Why it exists
+                    </strong>
+
+                    <p class="file-why">
+                        AI will explain this.
+                    </p>
+
+                </div>
+
+
+                <div class="explanation-item">
+
+                    <strong>
+                        How it helps the website
+                    </strong>
+
+                    <p class="file-role">
+                        AI will explain this.
+                    </p>
+
+                </div>
+
+
+                <div class="explanation-item">
+
+                    <strong>
+                        Dependencies
+                    </strong>
+
+                    <p class="file-dependencies">
+                        AI will identify dependencies.
+                    </p>
+
+                </div>
+
+
+                <div class="explanation-item">
+
+                    <strong>
+                        Important API Requests
+                    </strong>
+
+                    <p class="file-requests">
+                        AI will identify API requests.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="break-box">
+
+                <strong>
+
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+
+                    What breaks without this file?
+
+                </strong>
+
+                <p class="file-breaks">
+                    AI will explain the impact.
+                </p>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p style="color:#94a3b8">
+            No files have been selected yet.
+        </p>
+
+    {% endif %}
+
+</section>
+
+
+<!-- =====================================================
+     SOURCE CODE
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-code"></i>
+
+            Source Code Preview
+
+        </h2>
+
+        <span class="file-count">
+
+            {{ source_files|length }} loaded
+
+        </span>
+
+    </div>
+
+
+    {% if source_files %}
+
+        {% for file in source_files %}
+
+        <div class="source-file">
+
+            <div class="source-header">
+
+                <span>
+
+                    <i class="fa-regular fa-file-code"></i>
+
+                    {{ file.path }}
+
+                </span>
+
+
+                <span>
+
+                    {{ file.categories|join(" • ") }}
+
+                </span>
+
+            </div>
+
+
+            <pre><code>{{ file.content }}</code></pre>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p style="color:#94a3b8">
+            Save selected files to display their source code.
+        </p>
+
+    {% endif %}
+
+</section>
+
+
+<!-- =====================================================
+     CHAT
+===================================================== -->
+
+<section class="section">
+
+    <div class="section-header">
+
+        <h2>
+
+            <i class="fa-solid fa-comments"></i>
+
+            Ask Gitora AI
+
+        </h2>
+
+    </div>
+
+
+    <div
+        class="chat-box"
+        id="chatBox"
+    >
+
+        <div class="chat-message ai">
+
+            <strong>
+                Gitora AI
+            </strong>
+
+            <br><br>
+
+            I can understand the selected source files.
+
+            <br><br>
+
+            Ask questions such as:
+
+            <br><br>
+
+            • What does app.py do?<br>
+            • Why is requests used?<br>
+            • Which file handles weather?<br>
+            • How does the API response reach the website?<br>
+            • What breaks if routes.py is deleted?<br>
+            • Explain the architecture of this project.
+
+        </div>
+
+    </div>
+
+
+    <div class="chat-input">
+
+        <input
+            type="text"
+            id="questionInput"
+            placeholder="Ask Gitora AI about this repository..."
+        >
+
+
+        <button
+            type="button"
+            onclick="askGitoraAI()"
+        >
+
+            <i class="fa-solid fa-paper-plane"></i>
+
+        </button>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     PDF REPORT
+===================================================== -->
+
+<section class="section pdf-section">
+
+    <div>
+
+        <h2>
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            Complete Gitora AI Report
+
+        </h2>
+
+
+        <p style="color:#94a3b8">
+
+            Includes overall project understanding,
+            3 alternative ways to rebuild the project,
+            file-by-file explanations, important API
+            requests, dependencies, database,
+            authentication and impact analysis.
+
+        </p>
+
+
+        <p id="pdfStatus">
+
+            <i class="fa-solid fa-spinner fa-spin"></i>
+
+            Gitora is preparing your PDF report...
+
+        </p>
+
+    </div>
+
+
+    <form
+        id="pdfReportForm"
+        action="{{ url_for('main.download_report') }}"
+        method="POST"
+    >
+
+        <input
+            type="hidden"
+            name="repository"
+            value="{{ repository.full_name }}"
+        >
+
+
+        <button
+            type="submit"
+            class="pdf-btn"
+            id="pdfButton"
+        >
+
+            <i class="fa-solid fa-file-pdf"></i>
+
+            Generate PDF Report
+
+        </button>
+
+    </form>
+
+</section>
+
+
+</div>
+
+
+<script>
+
+
+/* =====================================================
+   FILE SELECTION
+===================================================== */
+
+function updateSelectedCount() {
+
+    const checkboxes =
+        document.querySelectorAll(
+            'input[name="selected_files"]'
+        );
+
+    let count = 0;
+
+    checkboxes.forEach(function(checkbox) {
+
+        if (checkbox.checked) {
+
+            count++;
+
+        }
+
+    });
+
+
+    const selectedCount =
+        document.getElementById(
+            "selectedCount"
+        );
+
+
+    if (selectedCount) {
+
+        selectedCount.textContent =
+            count + " files selected";
+
+    }
+
+}
+
+
+function selectAllFiles() {
+
+    document
+        .querySelectorAll(
+            'input[name="selected_files"]'
+        )
+        .forEach(function(checkbox) {
+
+            checkbox.checked = true;
+
+        });
+
+
+    updateSelectedCount();
+
+}
+
+
+function deselectAllFiles() {
+
+    document
+        .querySelectorAll(
+            'input[name="selected_files"]'
+        )
+        .forEach(function(checkbox) {
+
+            checkbox.checked = false;
+
+        });
+
+
+    updateSelectedCount();
+
+}
+
+
+/* =====================================================
+   FULL AI ANALYSIS
+===================================================== */
+
+async function runFullAIAnalysis() {
+
+    const button =
+        document.getElementById(
+            "runAIButton"
+        );
+
+    const status =
+        document.getElementById(
+            "aiStatus"
+        );
+
+
+    if (!button || !status) {
+
+        return;
+
+    }
+
+
+    button.disabled = true;
+
+
+    button.innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+
+
+    status.textContent =
+        "Gitora AI is reading the selected source files. Please wait...";
+
+
+    try {
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "repository",
+            "{{ repository.full_name }}"
+        );
+
+
+        document
+            .querySelectorAll(
+                'input[name="selected_files"]:checked'
+            )
+            .forEach(function(checkbox) {
+
+                formData.append(
+                    "selected_files",
+                    checkbox.value
+                );
+
+            });
+
+
+        const response =
+            await fetch(
+
+                "{{ url_for('main.ai_analyze') }}",
+
+                {
+
+                    method: "POST",
+
+                    body: formData
+
+                }
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server returned HTTP " +
+                response.status
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            status.textContent =
+                data.message ||
+                "AI analysis failed.";
+
+            return;
+
+        }
+
+
+        const analysis =
+            data.analysis;
+
+
+        if (
+            !analysis ||
+            typeof analysis !== "object"
+        ) {
+
+            status.textContent =
+                "Gitora AI returned an invalid analysis.";
+
+            return;
+
+        }
+
+
+        document.getElementById(
+            "projectSummary"
+        ).textContent =
+            analysis.project_summary ||
+            "No project summary available.";
+
+
+        document.getElementById(
+            "architecture"
+        ).textContent =
+            analysis.architecture ||
+            "Not available.";
+
+
+        document.getElementById(
+            "database"
+        ).textContent =
+            analysis.database ||
+            "Not available.";
+
+
+        document.getElementById(
+            "authentication"
+        ).textContent =
+            analysis.authentication ||
+            "Not available.";
+
+
+        document.getElementById(
+            "technologyStack"
+        ).textContent =
+            formatArray(
+                analysis.technology_stack
+            );
+
+
+        document.getElementById(
+            "dependencies"
+        ).textContent =
+            formatArray(
+                analysis.dependencies
+            );
+
+
+        renderRequests(
+            analysis.important_requests
+        );
+
+
+        renderRebuildWays(
+            analysis.rebuild_ways ||
+            analysis.rebuild_options
+        );
+
+
+        const fileAnalysis =
+            Array.isArray(
+                analysis.file_analysis
+            )
+            ? analysis.file_analysis
+            : [];
+
+
+        fileAnalysis.forEach(function(item) {
+
+            updateFileCard(item);
+
+        });
+
+
+        status.textContent =
+            "Gitora AI successfully analyzed the selected files.";
+
+    }
+
+
+    catch (error) {
+
+        console.error(
+            "AI ANALYSIS ERROR:",
+            error
+        );
+
+
+        status.textContent =
+            "Unable to connect to Gitora AI. " +
+            "Make sure the AI service is running.";
+
+    }
+
+
+    finally {
+
+        button.disabled = false;
+
+
+        button.innerHTML =
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze With Gitora AI';
+
+    }
+
+}
+
+
+/* =====================================================
+   3 WAYS TO REBUILD
+===================================================== */
+
+function renderRebuildWays(ways) {
+
+    const container =
+        document.getElementById(
+            "rebuildWays"
+        );
+
+
+    if (!container) {
+
+        return;
+
+    }
+
+
+    const boxes =
+        container.querySelectorAll(
+            ".analysis-box"
+        );
+
+
+    if (
+        !Array.isArray(ways) ||
+        ways.length === 0
+    ) {
+
+        boxes.forEach(function(box) {
+
+            const paragraph =
+                box.querySelector("p");
+
+
+            if (paragraph) {
+
+                paragraph.textContent =
+                    "Gitora AI did not return a rebuild strategy.";
+
+            }
+
+        });
+
+
+        return;
+
+    }
+
+
+    boxes.forEach(function(box, index) {
+
+        const paragraph =
+            box.querySelector("p");
+
+
+        if (!paragraph) {
+
+            return;
+
+        }
+
+
+        const item =
+            ways[index];
+
+
+        if (!item) {
+
+            paragraph.textContent =
+                "No strategy generated.";
+
+            return;
+
+        }
+
+
+        if (typeof item === "string") {
+
+            paragraph.textContent =
+                item;
+
+        }
+
+
+        else if (
+            typeof item === "object"
+        ) {
+
+            const title =
+                item.title ||
+                item.name ||
+                item.approach ||
+                "";
+
+
+            const description =
+                item.description ||
+                item.details ||
+                item.method ||
+                item.technology ||
+                "";
+
+
+            if (title) {
+
+                paragraph.textContent =
+                    title +
+                    "\n\n" +
+                    description;
+
+            }
+
+
+            else {
+
+                paragraph.textContent =
+                    description ||
+                    JSON.stringify(item);
+
+            }
+
+        }
+
+    });
+
+}
+
+
+/* =====================================================
+   SINGLE FILE AI
+===================================================== */
+
+async function analyzeSingleFile(button) {
+
+    const filePath =
+        button.dataset.file;
+
+
+    const card =
+        button.closest(
+            ".file-analysis-card"
+        );
+
+
+    if (!card || !filePath) {
+
+        return;
+
+    }
+
+
+    button.disabled = true;
+
+
+    button.innerHTML =
+        '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+
+
+    try {
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "repository",
+            "{{ repository.full_name }}"
+        );
+
+
+        formData.append(
+            "file_path",
+            filePath
+        );
+
+
+        const response =
+            await fetch(
+
+                "{{ url_for('main.analyze_file') }}",
+
+                {
+
+                    method: "POST",
+
+                    body: formData
+
+                }
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server returned HTTP " +
+                response.status
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (!data.success) {
+
+            alert(
+                data.message ||
+                "Unable to analyze this file."
+            );
+
+            return;
+
+        }
+
+
+        updateFileCard(
+            data.analysis,
+            card
+        );
+
+    }
+
+
+    catch (error) {
+
+        console.error(
+            "SINGLE FILE ERROR:",
+            error
+        );
+
+
+        alert(
+            "Gitora AI could not connect to the AI service."
+        );
+
+    }
+
+
+    finally {
+
+        button.disabled = false;
+
+
+        button.innerHTML =
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze with AI';
+
+    }
+
+}
+
+
+/* =====================================================
+   UPDATE FILE CARD
+===================================================== */
+
+function updateFileCard(
+    item,
+    suppliedCard = null
+) {
+
+    if (
+        !item ||
+        typeof item !== "object"
+    ) {
+
+        return;
+
+    }
+
+
+    let card =
+        suppliedCard;
+
+
+    if (!card && item.file) {
+
+        const allCards =
+            document.querySelectorAll(
+                ".file-analysis-card"
+            );
+
+
+        allCards.forEach(function(candidate) {
+
+            if (
+                candidate.dataset.filePath ===
+                item.file
+            ) {
+
+                card = candidate;
+
+            }
+
+        });
+
+    }
+
+
+    if (!card) {
+
+        return;
+
+    }
+
+
+    const does =
+        card.querySelector(
+            ".file-does"
+        );
+
+
+    const why =
+        card.querySelector(
+            ".file-why"
+        );
+
+
+    const role =
+        card.querySelector(
+            ".file-role"
+        );
+
+
+    const deps =
+        card.querySelector(
+            ".file-dependencies"
+        );
+
+
+    const requests =
+        card.querySelector(
+            ".file-requests"
+        );
+
+
+    const breaks =
+        card.querySelector(
+            ".file-breaks"
+        );
+
+
+    if (does) {
+
+        does.textContent =
+            item.what_it_does ||
+            "Not available.";
+
+    }
+
+
+    if (why) {
+
+        why.textContent =
+            item.why_it_exists ||
+            "Not available.";
+
+    }
+
+
+    if (role) {
+
+        role.textContent =
+            item.website_role ||
+            "Not available.";
+
+    }
+
+
+    if (deps) {
+
+        deps.textContent =
+            formatArray(
+                item.dependencies
+            );
+
+    }
+
+
+    if (requests) {
+
+        requests.textContent =
+            formatArray(
+                item.important_requests
+            );
+
+    }
+
+
+    if (breaks) {
+
+        breaks.textContent =
+            item.what_breaks ||
+            "Not available.";
+
+    }
+
+}
+
+
+/* =====================================================
+   API REQUESTS
+===================================================== */
+
+function renderRequests(requests) {
+
+    const container =
+        document.getElementById(
+            "importantRequests"
+        );
+
+
+    if (!container) {
+
+        return;
+
+    }
+
+
+    container.innerHTML = "";
+
+
+    if (
+        !Array.isArray(requests) ||
+        requests.length === 0
+    ) {
+
+        container.innerHTML = `
+
+            <div class="request-item">
+
+                <strong>
+                    No important external API requests detected
+                </strong>
+
+                <p>
+                    Gitora AI could not identify an important
+                    external API request from the selected files.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    requests.forEach(function(item) {
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.className =
+            "request-item";
+
+
+        if (typeof item === "string") {
+
+            div.innerHTML = `
+
+                <strong>
+                    API Request
+                </strong>
+
+                <p>
+                    ${escapeHTML(item)}
+                </p>
+
+            `;
+
+        }
+
+
+        else if (
+            item &&
+            typeof item === "object"
+        ) {
+
+            div.innerHTML = `
+
+                <strong>
+                    ${escapeHTML(
+                        item.api ||
+                        item.service ||
+                        "External API"
+                    )}
+                </strong>
+
+                <p>
+                    <b>File:</b>
+                    ${escapeHTML(
+                        item.file ||
+                        "Not specified"
+                    )}
+                </p>
+
+                <p>
+                    <b>Purpose:</b>
+                    ${escapeHTML(
+                        item.purpose ||
+                        item.why ||
+                        "Not specified"
+                    )}
+                </p>
+
+                <p>
+                    <b>How it is used:</b>
+                    ${escapeHTML(
+                        item.usage ||
+                        "Not specified"
+                    )}
+                </p>
+
+            `;
+
+        }
+
+
+        container.appendChild(
+            div
+        );
+
+    });
+
+}
+
+
+/* =====================================================
+   ASK GITORA AI
+===================================================== */
+
+async function askGitoraAI() {
+
+    const input =
+        document.getElementById(
+            "questionInput"
+        );
+
+
+    const chat =
+        document.getElementById(
+            "chatBox"
+        );
+
+
+    if (!input || !chat) {
+
+        return;
+
+    }
+
+
+    const question =
+        input.value.trim();
+
+
+    if (!question) {
+
+        return;
+
+    }
+
+
+    const userMessage =
+        document.createElement(
+            "div"
+        );
+
+
+    userMessage.className =
+        "chat-message user";
+
+
+    userMessage.innerHTML =
+        "<strong>You</strong><br>" +
+        escapeHTML(question);
+
+
+    chat.appendChild(
+        userMessage
+    );
+
+
+    input.value = "";
+
+
+    const loading =
+        document.createElement(
+            "div"
+        );
+
+
+    loading.className =
+        "chat-message ai";
+
+
+    loading.innerHTML =
+        "<strong>Gitora AI</strong><br>" +
+        "Reading the selected source files...";
+
+
+    chat.appendChild(
+        loading
+    );
+
+
+    chat.scrollTop =
+        chat.scrollHeight;
+
+
+    try {
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "repository",
+            "{{ repository.full_name }}"
+        );
+
+
+        formData.append(
+            "question",
+            question
+        );
+
+
+        const response =
+            await fetch(
+
+                "{{ url_for('main.ask_ai') }}",
+
+                {
+
+                    method: "POST",
+
+                    body: formData
+
+                }
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server returned HTTP " +
+                response.status
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if (data.success) {
+
+            loading.innerHTML =
+                "<strong>Gitora AI</strong><br>" +
+                escapeHTML(
+                    data.answer ||
+                    "No answer returned."
+                );
+
+        }
+
+
+        else {
+
+            loading.innerHTML =
+                "<strong>Gitora AI</strong><br>" +
+                escapeHTML(
+                    data.answer ||
+                    data.message ||
+                    "Unable to answer."
+                );
+
+        }
+
+    }
+
+
+    catch (error) {
+
+        console.error(
+            "CHAT ERROR:",
+            error
+        );
+
+
+        loading.innerHTML =
+            "<strong>Gitora AI</strong><br>" +
+            "Gitora AI could not connect to the AI service.";
+
+    }
+
+
+    chat.scrollTop =
+        chat.scrollHeight;
+
+}
+
+
+/* =====================================================
+   PDF GENERATION PROTECTION
+===================================================== */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function() {
+
+        updateSelectedCount();
+
+
+        const input =
+            document.getElementById(
+                "questionInput"
+            );
+
+
+        if (input) {
+
+            input.addEventListener(
+                "keydown",
+                function(event) {
+
+                    if (event.key === "Enter") {
+
+                        event.preventDefault();
+
+                        askGitoraAI();
+
+                    }
+
+                }
+            );
+
+        }
+
+
+        /* ---------------------------------------------
+           PDF FORM
+        --------------------------------------------- */
+
+        const pdfForm =
+            document.getElementById(
+                "pdfReportForm"
+            );
+
+
+        const pdfButton =
+            document.getElementById(
+                "pdfButton"
+            );
+
+
+        const pdfStatus =
+            document.getElementById(
+                "pdfStatus"
+            );
+
+
+        if (
+            pdfForm &&
+            pdfButton
+        ) {
+
+            pdfForm.addEventListener(
+                "submit",
+                function() {
+
+                    /*
+                     * Prevent accidental double-clicks.
+                     */
+
+                    if (
+                        pdfForm.dataset.submitting ===
+                        "true"
+                    ) {
+
+                        event.preventDefault();
+
+                        return false;
+
+                    }
+
+
+                    pdfForm.dataset.submitting =
+                        "true";
+
+
+                    pdfButton.disabled =
+                        true;
+
+
+                    pdfButton.innerHTML =
+                        '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
+
+
+                    if (pdfStatus) {
+
+                        pdfStatus.style.display =
+                            "block";
+
+                        pdfStatus.innerHTML = `
+
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+
+                            Gitora is analyzing the repository
+                            and generating your PDF. This may
+                            take a little while...
+
+                        `;
+
+                    }
+
+                }
+            );
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   ARRAY FORMATTER
+===================================================== */
+
+function formatArray(value) {
+
+    if (
+        value === null ||
+        value === undefined
+    ) {
+
+        return "None identified.";
+
+    }
+
+
+    if (Array.isArray(value)) {
+
+        if (value.length === 0) {
+
+            return "None identified.";
+
+        }
+
+
+        return value
+            .map(function(item) {
+
+                if (
+                    typeof item === "object"
+                ) {
+
+                    try {
+
+                        return JSON.stringify(
+                            item
+                        );
+
+                    }
+
+                    catch (error) {
+
+                        return String(item);
+
+                    }
+
+                }
+
+
+                return String(item);
+
+            })
+            .join(" • ");
+
+    }
+
+
+    if (
+        typeof value === "object"
+    ) {
+
+        try {
+
+            return JSON.stringify(value);
+
+        }
+
+        catch (error) {
+
+            return String(value);
+
+        }
+
+    }
+
+
+    return String(value);
+
+}
+
+
+/* =====================================================
+   SAFE HTML
+===================================================== */
+
+function escapeHTML(text) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.textContent =
+        text === null ||
+        text === undefined
+            ? ""
+            : String(text);
+
+
+    return div.innerHTML;
+
+}
+
+</script>
+
+</body>
+
+</html>
