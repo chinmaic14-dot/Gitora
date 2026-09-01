@@ -1,9 +1,30 @@
+# app/services/ai_service.py
+
 import json
 import re
-import ollama
+import os
+
+from openai import OpenAI
 
 
-MODEL = "llama3.2"
+# =====================================================
+# OPENAI CONFIGURATION
+# =====================================================
+
+MODEL = os.getenv(
+    "OPENAI_MODEL",
+    "gpt-4o-mini"
+)
+
+OPENAI_API_KEY = os.getenv(
+    "OPENAI_API_KEY"
+)
+
+client = (
+    OpenAI(api_key=OPENAI_API_KEY)
+    if OPENAI_API_KEY
+    else None
+)
 
 NIL = "None identified."
 
@@ -95,6 +116,7 @@ from the repository.
 Analyze ONLY this supplied source code.
 
 DO NOT invent:
+
 - frameworks
 - libraries
 - APIs
@@ -176,7 +198,6 @@ def empty_analysis(message="No analysis available."):
 
         "build_approaches": [],
 
-        # Compatibility with analysis.html
         "rebuild_ways": [],
 
         "estimated_development_time": message,
@@ -184,7 +205,6 @@ def empty_analysis(message="No analysis available."):
         "run_instructions": [],
 
         "folder_structure": message
-
     }
 
 
@@ -212,7 +232,6 @@ def empty_file_analysis(
         "important_requests": [],
 
         "what_breaks": message
-
     }
 
 
@@ -274,9 +293,7 @@ def extract_json(text):
         return None
 
     depth = 0
-
     in_string = False
-
     escaped = False
 
     for index in range(
@@ -346,10 +363,6 @@ def normalize_analysis(result):
             "Gitora AI returned an invalid analysis."
         )
 
-    # -------------------------------------------------
-    # BASIC FIELDS
-    # -------------------------------------------------
-
     result["project_summary"] = safe_value(
         result.get(
             "project_summary",
@@ -391,10 +404,6 @@ def normalize_analysis(result):
             NIL
         )
     )
-
-    # -------------------------------------------------
-    # LIST FIELDS
-    # -------------------------------------------------
 
     result["technology_stack"] = normalize_list(
         result.get(
@@ -461,7 +470,6 @@ def normalize_analysis(result):
     for item in result["file_analysis"]:
 
         if not isinstance(item, dict):
-
             continue
 
         normalized_files.append({
@@ -521,7 +529,6 @@ def normalize_analysis(result):
                         NIL
                     )
                 )
-
         })
 
     result["file_analysis"] = normalized_files
@@ -562,21 +569,29 @@ def normalize_analysis(result):
         if isinstance(item, str):
 
             normalized_rebuild.append({
+
                 "name": "Rebuild Approach",
+
                 "approach": item,
+
                 "description": item,
+
                 "technologies": [],
+
                 "architecture": "",
+
                 "steps": [],
+
                 "advantages": [],
+
                 "limitations": [],
+
                 "estimated_time": ""
             })
 
             continue
 
         if not isinstance(item, dict):
-
             continue
 
         normalized_rebuild.append({
@@ -659,12 +674,10 @@ def normalize_analysis(result):
                         NIL
                     )
                 )
-
         })
 
     result["rebuild_ways"] = normalized_rebuild[:3]
 
-    # Keep compatibility with backend/PDF
     result["build_approaches"] = result[
         "rebuild_ways"
     ]
@@ -749,19 +762,34 @@ def normalize_file_analysis(
                     NIL
                 )
             )
-
     }
 
 
 # =====================================================
-# OLLAMA JSON CALL
+# OPENAI JSON CALL
 # =====================================================
 
-def call_ollama_json(
+def call_openai_json(
     system_prompt,
     user_prompt,
     retry_prompt=None
 ):
+
+    if client is None:
+
+        print(
+            "\n========== GITORA OPENAI ERROR =========="
+        )
+
+        print(
+            "OPENAI_API_KEY is not configured."
+        )
+
+        print(
+            "==========================================\n"
+        )
+
+        return None
 
     # -------------------------------------------------
     # FIRST ATTEMPT
@@ -769,7 +797,7 @@ def call_ollama_json(
 
     try:
 
-        response = ollama.chat(
+        response = client.chat.completions.create(
 
             model=MODEL,
 
@@ -787,18 +815,18 @@ def call_ollama_json(
 
             ],
 
-            format="json"
+            response_format={
+                "type": "json_object"
+            }
 
         )
 
-        raw = response[
-            "message"
-        ][
-            "content"
-        ]
+        raw = response.choices[
+            0
+        ].message.content
 
         print(
-            "\n========== GITORA RAW AI RESPONSE =========="
+            "\n========== GITORA OPENAI RESPONSE =========="
         )
 
         print(raw)
@@ -826,7 +854,7 @@ def call_ollama_json(
     except Exception as error:
 
         print(
-            "\n========== GITORA OLLAMA ERROR =========="
+            "\n========== GITORA OPENAI ERROR =========="
         )
 
         print(error)
@@ -843,7 +871,7 @@ def call_ollama_json(
 
         try:
 
-            response = ollama.chat(
+            response = client.chat.completions.create(
 
                 model=MODEL,
 
@@ -861,15 +889,15 @@ def call_ollama_json(
 
                 ],
 
-                format="json"
+                response_format={
+                    "type": "json_object"
+                }
 
             )
 
-            raw = response[
-                "message"
-            ][
-                "content"
-            ]
+            raw = response.choices[
+                0
+            ].message.content
 
             print(
                 "\n========== GITORA RETRY RESPONSE =========="
@@ -991,13 +1019,6 @@ architecture:
 
 Explain how the actual components communicate.
 
-For example:
-
-Frontend
-→ route
-→ service
-→ database/API
-
 Only describe connections visible in code.
 
 =================================================
@@ -1103,16 +1124,6 @@ project_flow:
 
 Explain the ACTUAL execution flow step-by-step.
 
-Example:
-
-[
-  "User opens the application.",
-  "The entry point initializes the application.",
-  "The route receives the request.",
-  "The service processes the request.",
-  "The response is returned to the frontend."
-]
-
 Only include steps supported by source code.
 
 =================================================
@@ -1182,9 +1193,7 @@ Each object:
   "estimated_time": ""
 }
 
-These are alternative designs.
-
-Clearly separate them from the existing project.
+Clearly separate alternatives from the existing project.
 
 =================================================
 ESTIMATED DEVELOPMENT TIME
@@ -1196,7 +1205,7 @@ Give a realistic rough estimate for rebuilding
 a similar project from scratch.
 
 =================================================
-STEP 4 — AUTOMATIC RUN / SETUP INSTRUCTIONS
+RUN / SETUP INSTRUCTIONS
 =================================================
 
 run_instructions:
@@ -1217,38 +1226,20 @@ Look for actual evidence such as:
 - Flask app
 - Django manage.py
 - Node scripts
-- npm scripts
 - Python entry points
 - README instructions
-- executable configuration
 
 Return practical steps.
 
-Example:
-
-[
-  "Create a Python virtual environment.",
-  "Install dependencies using requirements.txt.",
-  "Set the required environment variables.",
-  "Run python app.py."
-]
-
-BUT:
-
 Only provide commands that can be determined
 from the supplied files.
-
-If the exact command cannot be determined,
-say:
-
-"Run command could not be determined from supplied files."
 
 Do NOT invent commands.
 
 For environment variables, only mention variables
 actually visible in the source.
 
-For API keys, NEVER expose actual secret values.
+NEVER expose actual secret values.
 
 =================================================
 FOLDER STRUCTURE
@@ -1336,14 +1327,13 @@ from the supplied files.
 Do not invent commands.
 """
 
-    result = call_ollama_json(
+    result = call_openai_json(
 
         system_prompt=system_prompt,
 
         user_prompt=user_prompt,
 
         retry_prompt=retry_prompt
-
     )
 
     if result is None:
@@ -1494,14 +1484,13 @@ Analyze ONLY this actual file:
 {content}
 """
 
-    result = call_ollama_json(
+    result = call_openai_json(
 
         system_prompt=system_prompt,
 
         user_prompt=user_prompt,
 
         retry_prompt=retry_prompt
-
     )
 
     if result is None:
@@ -1533,6 +1522,13 @@ def answer_repository_question(
         return (
             "No files have been selected. "
             "Please select and save repository files first."
+        )
+
+    if client is None:
+
+        return (
+            "Gitora AI is not configured. "
+            "Please configure OPENAI_API_KEY."
         )
 
     context = build_repository_context(
@@ -1579,7 +1575,7 @@ USER QUESTION:
 
     try:
 
-        response = ollama.chat(
+        response = client.chat.completions.create(
 
             model=MODEL,
 
@@ -1599,11 +1595,9 @@ USER QUESTION:
 
         )
 
-        return response[
-            "message"
-        ][
-            "content"
-        ].strip()
+        return response.choices[
+            0
+        ].message.content.strip()
 
     except Exception as error:
 
@@ -1618,9 +1612,8 @@ USER QUESTION:
         )
 
         return (
-            "Gitora AI could not connect to Ollama. "
-            "Make sure Ollama is running and "
-            f"the model '{MODEL}' is installed."
+            "Gitora AI could not connect to OpenAI. "
+            "Check the OPENAI_API_KEY and try again."
         )
 
 
@@ -1634,7 +1627,9 @@ def generate_rebuild_strategies(
 ):
 
     if not files:
+        return []
 
+    if client is None:
         return []
 
     context = build_repository_context(
@@ -1745,9 +1740,12 @@ Analyze ONLY:
 {context}
 """
 
-    result = call_ollama_json(
+    result = call_openai_json(
+
         system_prompt=system_prompt,
+
         user_prompt=user_prompt,
+
         retry_prompt=retry_prompt
     )
 
@@ -1778,7 +1776,6 @@ Analyze ONLY:
             item,
             dict
         ):
-
             continue
 
         normalized.append({
@@ -1857,7 +1854,6 @@ Analyze ONLY:
                         NIL
                     )
                 )
-
         })
 
     return normalized[:3]
