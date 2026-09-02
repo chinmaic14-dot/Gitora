@@ -46,11 +46,9 @@ main = Blueprint("main", __name__)
 def cleanup_database_session(exception=None):
 
     try:
-
         db.session.remove()
 
     except Exception as error:
-
         print(
             "DATABASE SESSION CLEANUP ERROR:",
             repr(error)
@@ -107,11 +105,12 @@ def analyze():
         ""
     ).strip()
 
-    print("Repository URL:", repo_url)
+    print(
+        "Repository URL:",
+        repo_url
+    )
 
     if not repo_url:
-
-        print("ERROR: Repository URL is empty.")
 
         return render_template(
             "index.html",
@@ -120,7 +119,9 @@ def analyze():
 
     try:
 
-        print("Getting repository information...")
+        print(
+            "Getting repository information..."
+        )
 
         repository = get_repository_info(
             repo_url
@@ -131,7 +132,9 @@ def analyze():
             repository.get("full_name")
         )
 
-        print("Getting repository files...")
+        print(
+            "Getting repository files..."
+        )
 
         files = get_repository_files(
             repository["owner"],
@@ -185,7 +188,9 @@ def analyze():
                     )
                 })
 
-        print("Opening analysis.html...")
+        print(
+            "Opening analysis.html..."
+        )
 
         return render_template(
             "analysis.html",
@@ -213,8 +218,14 @@ def analyze():
 
         print("\n========================================")
         print("❌ ANALYZE REPOSITORY FAILED")
-        print("ERROR TYPE:", type(error).__name__)
-        print("ERROR:", repr(error))
+        print(
+            "ERROR TYPE:",
+            type(error).__name__
+        )
+        print(
+            "ERROR:",
+            repr(error)
+        )
         print("========================================")
 
         return render_template(
@@ -353,6 +364,7 @@ def save_files():
 
         print(
             "RETURN ANALYSIS ERROR:",
+            type(error).__name__,
             repr(error)
         )
 
@@ -448,15 +460,21 @@ def ai_analyze():
                     "Gitora AI returned an invalid response."
             })
 
-        rebuild_ways = result.get(
-            "rebuild_ways",
-            result.get("rebuild_options", [])
+        rebuild_options = result.get(
+            "rebuild_options",
+            []
         )
+
+        if not isinstance(
+            rebuild_options,
+            list
+        ):
+            rebuild_options = []
 
         return jsonify({
             "success": True,
             "analysis": result,
-            "rebuild_options": rebuild_ways
+            "rebuild_options": rebuild_options
         })
 
     except Exception as error:
@@ -550,7 +568,10 @@ def rebuild_options():
             files=source_files
         )
 
-        if not isinstance(analysis, dict):
+        if not isinstance(
+            analysis,
+            dict
+        ):
 
             return jsonify({
                 "success": False,
@@ -559,12 +580,14 @@ def rebuild_options():
             })
 
         options = analysis.get(
-            "rebuild_ways",
-            analysis.get("rebuild_options", [])
+            "rebuild_options",
+            []
         )
 
-        if not isinstance(options, list):
-
+        if not isinstance(
+            options,
+            list
+        ):
             options = []
 
         options = options[:3]
@@ -607,6 +630,10 @@ def rebuild_options():
 @main.route("/analyze-file", methods=["POST"])
 def analyze_file():
 
+    print("\n========================================")
+    print("🔥 GITORA INDIVIDUAL FILE ANALYSIS")
+    print("========================================")
+
     try:
 
         repository_name = request.form.get(
@@ -618,6 +645,16 @@ def analyze_file():
             "file_path",
             ""
         ).strip()
+
+        print(
+            "Repository:",
+            repository_name
+        )
+
+        print(
+            "File:",
+            file_path
+        )
 
         if not repository_name:
 
@@ -637,6 +674,11 @@ def analyze_file():
 
         saved_files = get_saved_file_paths(
             repository_name
+        )
+
+        print(
+            "Saved files:",
+            saved_files
         )
 
         if file_path not in saved_files:
@@ -678,10 +720,35 @@ def analyze_file():
                     "Unable to load the selected files."
             })
 
+        print(
+            "Sending file to Gemini:",
+            file_path
+        )
+
         result = analyze_single_file(
             repository=repository,
             files=source_files,
             selected_file=file_path
+        )
+
+        if not isinstance(
+            result,
+            dict
+        ):
+
+            return jsonify({
+                "success": False,
+                "message":
+                    "Gitora AI returned an invalid file analysis."
+            })
+
+        print(
+            "Individual file analysis completed."
+        )
+
+        print(
+            "AI fields:",
+            list(result.keys())
         )
 
         return jsonify({
@@ -692,9 +759,25 @@ def analyze_file():
     except Exception as error:
 
         print(
-            "SINGLE FILE ANALYSIS ERROR:",
-            type(error).__name__,
+            "========================================"
+        )
+
+        print(
+            "❌ SINGLE FILE ANALYSIS ERROR"
+        )
+
+        print(
+            "ERROR TYPE:",
+            type(error).__name__
+        )
+
+        print(
+            "ERROR:",
             repr(error)
+        )
+
+        print(
+            "========================================"
         )
 
         return jsonify({
@@ -827,7 +910,7 @@ def ask_ai():
 def download_report():
 
     print("\n========================================")
-    print("GITORA PDF REPORT REQUEST")
+    print("🔥 GITORA PDF REPORT REQUEST")
     print("========================================")
 
     try:
@@ -876,7 +959,7 @@ def download_report():
         for file_path in saved_files:
 
             print(
-                "Loading file:",
+                "Loading PDF source file:",
                 file_path
             )
 
@@ -905,7 +988,7 @@ def download_report():
             )
 
         print(
-            "Starting Gitora Gemini analysis for PDF..."
+            "Starting Gemini analysis for PDF..."
         )
 
         ai_analysis = analyze_repository(
@@ -913,22 +996,47 @@ def download_report():
             files=source_files
         )
 
-        if not isinstance(ai_analysis, dict):
+        if not isinstance(
+            ai_analysis,
+            dict
+        ):
+
+            print(
+                "WARNING: Invalid AI analysis received."
+            )
 
             ai_analysis = {
                 "project_summary":
                     "AI analysis was unavailable.",
+
                 "technology_stack": [],
+
                 "architecture":
                     "AI analysis was unavailable.",
+
                 "dependencies": [],
+
                 "database":
                     "AI analysis was unavailable.",
+
                 "authentication":
                     "AI analysis was unavailable.",
+
                 "important_requests": [],
+
                 "file_analysis": [],
-                "rebuild_ways": []
+
+                "rebuild_options": [],
+
+                "estimated_development_time":
+                    "Not identified.",
+
+                "routing": [],
+
+                "run_instructions": [],
+
+                "folder_structure":
+                    "AI analysis was unavailable."
             }
 
         print(
@@ -956,7 +1064,6 @@ def download_report():
             pdf_buffer.seek(0)
 
         except Exception:
-
             pass
 
         filename = (
@@ -981,11 +1088,11 @@ def download_report():
     except Exception as error:
 
         print(
-            "========================================"
+            "\n========================================"
         )
 
         print(
-            "GITORA PDF GENERATION FAILED"
+            "❌ GITORA PDF GENERATION FAILED"
         )
 
         print(
@@ -1004,14 +1111,13 @@ def download_report():
 
         return (
             "Unable to generate the PDF report. "
-            "Check the Flask terminal for the exact error.",
+            "Check the Render logs for the exact error.",
             500
         )
 
     finally:
 
         try:
-
             db.session.remove()
 
         except Exception as error:

@@ -1,25 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
-<head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
-
-<title>{{ repository.name }} | Gitora AI</title>
-
-<link rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}">
-
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet">
-
-<style>
+<title>{{ repository.name }} | Gitora AI</title><link rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"><link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"><style>
 
 * {
     box-sizing: border-box;
@@ -974,45 +959,313 @@ pre {
     }
 }
 
-</style>
-
-</head>
-
-
-<body>
-
-<div class="analysis-page">
-
-
-<!-- =====================================================
+</style></head><body><div class="analysis-page"><!-- =====================================================
      REPOSITORY HEADER
-===================================================== -->
+===================================================== --><header class="analysis-header"><div class="repo-title">
 
-<header class="analysis-header">
+    <div class="repo-icon">
 
-    <div class="repo-title">
+        <i class="fa-brands fa-github"></i>
 
-        <div class="repo-icon">
+    </div>
 
-            <i class="fa-brands fa-github"></i>
+    <div>
+
+        <h1>
+            {{ repository.name }}
+        </h1>
+
+        <p>
+
+            {{ repository.full_name }}
+
+            {% if repository.default_branch %}
+
+                • {{ repository.default_branch }}
+
+            {% endif %}
+
+        </p>
+
+    </div>
+
+</div>
+
+<a
+    href="https://github.com/{{ repository.full_name }}"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="repo-link"
+>
+
+    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+
+    Open GitHub
+
+</a>
+
+</header><!-- =====================================================
+     FILE SELECTION
+===================================================== --><section class="section"><div class="section-header">
+
+    <h2>
+
+        <i class="fa-solid fa-folder-tree"></i>
+
+        Repository Files
+
+    </h2>
+
+    <span class="file-count">
+
+        {{ files|length }} files
+
+    </span>
+
+</div>
+
+
+<form
+    action="{{ url_for('main.save_files') }}"
+    method="POST"
+>
+
+    <input
+        type="hidden"
+        name="repository"
+        value="{{ repository.full_name }}"
+    >
+
+
+    <div class="file-controls">
+
+        <button
+            type="button"
+            onclick="selectAllFiles()"
+        >
+
+            <i class="fa-solid fa-check-double"></i>
+
+            Select All
+
+        </button>
+
+
+        <button
+            type="button"
+            onclick="deselectAllFiles()"
+        >
+
+            <i class="fa-solid fa-xmark"></i>
+
+            Deselect All
+
+        </button>
+
+
+        <span id="selectedCount">
+
+            0 files selected
+
+        </span>
+
+    </div>
+
+
+    <div class="file-list">
+
+        {% for file in files %}
+
+        <label class="file-item">
+
+            <input
+                type="checkbox"
+                name="selected_files"
+                value="{{ file.path }}"
+                {% if file.path in saved_files %}
+                    checked
+                {% endif %}
+                onchange="updateSelectedCount()"
+            >
+
+            <i class="fa-regular fa-file-code"></i>
+
+            <span>
+                {{ file.path }}
+            </span>
+
+        </label>
+
+        {% endfor %}
+
+    </div>
+
+
+    <button
+        type="submit"
+        class="save-files-btn"
+    >
+
+        <i class="fa-solid fa-floppy-disk"></i>
+
+        Save Selected Files
+
+    </button>
+
+</form>
+
+</section><!-- =====================================================
+     OVERALL AI ANALYSIS
+===================================================== --><section class="section"><div class="section-header">
+
+    <h2>
+
+        <i class="fa-solid fa-brain"></i>
+
+        Gitora AI — Project Understanding
+
+    </h2>
+
+</div>
+
+
+<div class="ai-analysis-card">
+
+    <div class="ai-analysis-top">
+
+        <div class="ai-icon">
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
 
         </div>
 
         <div>
 
-            <h1>
-                {{ repository.name }}
-            </h1>
+            <h3>
+                Overall Project Analysis
+            </h3>
 
             <p>
+                Gitora AI reads the selected source files
+                and explains how the project works.
+            </p>
 
-                {{ repository.full_name }}
+        </div>
 
-                {% if repository.default_branch %}
+    </div>
 
-                    • {{ repository.default_branch }}
 
-                {% endif %}
+    <div class="analysis-grid">
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-lightbulb"></i>
+
+                What This Project Does
+
+            </h3>
+
+            <p id="projectSummary">
+
+                Select files and click Analyze With Gitora AI.
+
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-layer-group"></i>
+
+                Technology Stack
+
+            </h3>
+
+            <p id="technologyStack">
+
+                Waiting for AI analysis.
+
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-sitemap"></i>
+
+                Architecture
+
+            </h3>
+
+            <p id="architecture">
+
+                Waiting for AI analysis.
+
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-link"></i>
+
+                Dependencies
+
+            </h3>
+
+            <p id="dependencies">
+
+                Waiting for AI analysis.
+
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-database"></i>
+
+                Database
+
+            </h3>
+
+            <p id="database">
+
+                Waiting for AI analysis.
+
+            </p>
+
+        </div>
+
+
+        <div class="analysis-box">
+
+            <h3>
+
+                <i class="fa-solid fa-shield-halved"></i>
+
+                Authentication
+
+            </h3>
+
+            <p id="authentication">
+
+                Waiting for AI analysis.
 
             </p>
 
@@ -1020,832 +1273,488 @@ pre {
 
     </div>
 
-    <a
-        href="https://github.com/{{ repository.full_name }}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="repo-link"
+
+    <button
+        type="button"
+        class="run-ai-btn"
+        id="runAIButton"
+        onclick="runFullAIAnalysis()"
     >
 
-        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
 
-        Open GitHub
+        Analyze With Gitora AI
 
-    </a>
-
-</header>
+    </button>
 
 
-<!-- =====================================================
-     FILE SELECTION
-===================================================== -->
+    <p id="aiStatus"></p>
 
-<section class="section">
+</div>
 
-    <div class="section-header">
+</section><!-- =====================================================
+     3 WAYS TO REBUILD
+===================================================== --><section class="section"><div class="section-header">
 
-        <h2>
+    <h2>
 
-            <i class="fa-solid fa-folder-tree"></i>
+        <i class="fa-solid fa-code-branch"></i>
 
-            Repository Files
+        3 Ways to Rebuild This Project
 
-        </h2>
+    </h2>
 
-        <span class="file-count">
+    <span class="file-count">
+        AI Generated
+    </span>
 
-            {{ files|length }} files
+</div>
 
-        </span>
+
+<div
+    class="analysis-grid"
+    id="rebuildWays"
+>
+
+    <div class="analysis-box">
+
+        <h3>
+
+            <i class="fa-solid fa-1"></i>
+
+            Approach 1
+
+        </h3>
+
+        <p>
+            Waiting for Gitora AI analysis.
+        </p>
 
     </div>
 
 
-    <form
-        action="{{ url_for('main.save_files') }}"
-        method="POST"
+    <div class="analysis-box">
+
+        <h3>
+
+            <i class="fa-solid fa-2"></i>
+
+            Approach 2
+
+        </h3>
+
+        <p>
+            Waiting for Gitora AI analysis.
+        </p>
+
+    </div>
+
+
+    <div class="analysis-box">
+
+        <h3>
+
+            <i class="fa-solid fa-3"></i>
+
+            Approach 3
+
+        </h3>
+
+        <p>
+            Waiting for Gitora AI analysis.
+        </p>
+
+    </div>
+
+</div>
+
+</section><!-- =====================================================
+     API REQUESTS
+===================================================== --><section class="section"><div class="section-header">
+
+    <h2>
+
+        <i class="fa-solid fa-globe"></i>
+
+        Important API Requests
+
+    </h2>
+
+    <span class="file-count">
+        AI detected
+    </span>
+
+</div>
+
+
+<div
+    class="requests-list"
+    id="importantRequests"
+>
+
+    <div class="request-item">
+
+        <strong>
+            Waiting for AI analysis
+        </strong>
+
+        <p>
+            Click "Analyze With Gitora AI" to identify
+            important external API requests.
+        </p>
+
+    </div>
+
+</div>
+
+</section><!-- =====================================================
+     FILE-BY-FILE ANALYSIS
+===================================================== --><section class="section"><div class="section-header">
+
+    <h2>
+
+        <i class="fa-solid fa-file-circle-check"></i>
+
+        File-by-File Explanation
+
+    </h2>
+
+    <span class="file-count">
+
+        {{ source_files|length }} selected
+
+    </span>
+
+</div>
+
+
+{% if source_files %}
+
+    {% for file in source_files %}
+
+    <div
+        class="file-analysis-card"
+        data-file-path="{{ file.path }}"
     >
 
-        <input
-            type="hidden"
-            name="repository"
-            value="{{ repository.full_name }}"
-        >
+        <div class="file-analysis-title">
 
+            <div class="file-analysis-name">
 
-        <div class="file-controls">
+                <i class="fa-solid fa-file-code"></i>
 
-            <button
-                type="button"
-                onclick="selectAllFiles()"
-            >
+                <h3>
+                    {{ file.path }}
+                </h3>
 
-                <i class="fa-solid fa-check-double"></i>
-
-                Select All
-
-            </button>
+            </div>
 
 
             <button
                 type="button"
-                onclick="deselectAllFiles()"
+                class="analyze-file-btn"
+                onclick="analyzeSingleFile(this)"
+                data-file="{{ file.path }}"
             >
 
-                <i class="fa-solid fa-xmark"></i>
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
 
-                Deselect All
+                Analyze with AI
 
             </button>
 
+        </div>
 
-            <span id="selectedCount">
 
-                0 files selected
+        <div class="file-analysis-grid">
+
+            <div class="explanation-item">
+
+                <strong>
+                    What it does
+                </strong>
+
+                <p class="file-does">
+                    Click Analyze with AI.
+                </p>
+
+            </div>
+
+
+            <div class="explanation-item">
+
+                <strong>
+                    Why it exists
+                </strong>
+
+                <p class="file-why">
+                    AI will explain this.
+                </p>
+
+            </div>
+
+
+            <div class="explanation-item">
+
+                <strong>
+                    How it helps the website
+                </strong>
+
+                <p class="file-role">
+                    AI will explain this.
+                </p>
+
+            </div>
+
+
+            <div class="explanation-item">
+
+                <strong>
+                    Dependencies
+                </strong>
+
+                <p class="file-dependencies">
+                    AI will identify dependencies.
+                </p>
+
+            </div>
+
+
+            <div class="explanation-item">
+
+                <strong>
+                    Important API Requests
+                </strong>
+
+                <p class="file-requests">
+                    AI will identify API requests.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="break-box">
+
+            <strong>
+
+                <i class="fa-solid fa-triangle-exclamation"></i>
+
+                What breaks without this file?
+
+            </strong>
+
+            <p class="file-breaks">
+                AI will explain the impact.
+            </p>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+{% else %}
+
+    <p style="color:#94a3b8">
+        No files have been selected yet.
+    </p>
+
+{% endif %}
+
+</section><!-- =====================================================
+     SOURCE CODE
+===================================================== --><section class="section"><div class="section-header">
+
+    <h2>
+
+        <i class="fa-solid fa-code"></i>
+
+        Source Code Preview
+
+    </h2>
+
+    <span class="file-count">
+
+        {{ source_files|length }} loaded
+
+    </span>
+
+</div>
+
+
+{% if source_files %}
+
+    {% for file in source_files %}
+
+    <div class="source-file">
+
+        <div class="source-header">
+
+            <span>
+
+                <i class="fa-regular fa-file-code"></i>
+
+                {{ file.path }}
+
+            </span>
+
+
+            <span>
+
+                {{ file.categories|join(" • ") }}
 
             </span>
 
         </div>
 
 
-        <div class="file-list">
-
-            {% for file in files %}
-
-            <label class="file-item">
-
-                <input
-                    type="checkbox"
-                    name="selected_files"
-                    value="{{ file.path }}"
-                    {% if file.path in saved_files %}
-                        checked
-                    {% endif %}
-                    onchange="updateSelectedCount()"
-                >
-
-                <i class="fa-regular fa-file-code"></i>
-
-                <span>
-                    {{ file.path }}
-                </span>
-
-            </label>
-
-            {% endfor %}
-
-        </div>
-
-
-        <button
-            type="submit"
-            class="save-files-btn"
-        >
-
-            <i class="fa-solid fa-floppy-disk"></i>
-
-            Save Selected Files
-
-        </button>
-
-    </form>
-
-</section>
-
-
-<!-- =====================================================
-     OVERALL AI ANALYSIS
-===================================================== -->
-
-<section class="section">
-
-    <div class="section-header">
-
-        <h2>
-
-            <i class="fa-solid fa-brain"></i>
-
-            Gitora AI — Project Understanding
-
-        </h2>
+        <pre><code>{{ file.content }}</code></pre>
 
     </div>
 
+    {% endfor %}
 
-    <div class="ai-analysis-card">
+{% else %}
 
-        <div class="ai-analysis-top">
+    <p style="color:#94a3b8">
+        Save selected files to display their source code.
+    </p>
 
-            <div class="ai-icon">
+{% endif %}
 
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-
-            </div>
-
-            <div>
-
-                <h3>
-                    Overall Project Analysis
-                </h3>
-
-                <p>
-                    Gitora AI reads the selected source files
-                    and explains how the project works.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="analysis-grid">
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-lightbulb"></i>
-
-                    What This Project Does
-
-                </h3>
-
-                <p id="projectSummary">
-
-                    Select files and click Analyze With Gitora AI.
-
-                </p>
-
-            </div>
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-layer-group"></i>
-
-                    Technology Stack
-
-                </h3>
-
-                <p id="technologyStack">
-
-                    Waiting for AI analysis.
-
-                </p>
-
-            </div>
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-sitemap"></i>
-
-                    Architecture
-
-                </h3>
-
-                <p id="architecture">
-
-                    Waiting for AI analysis.
-
-                </p>
-
-            </div>
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-link"></i>
-
-                    Dependencies
-
-                </h3>
-
-                <p id="dependencies">
-
-                    Waiting for AI analysis.
-
-                </p>
-
-            </div>
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-database"></i>
-
-                    Database
-
-                </h3>
-
-                <p id="database">
-
-                    Waiting for AI analysis.
-
-                </p>
-
-            </div>
-
-
-            <div class="analysis-box">
-
-                <h3>
-
-                    <i class="fa-solid fa-shield-halved"></i>
-
-                    Authentication
-
-                </h3>
-
-                <p id="authentication">
-
-                    Waiting for AI analysis.
-
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <button
-            type="button"
-            class="run-ai-btn"
-            id="runAIButton"
-            onclick="runFullAIAnalysis()"
-        >
-
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-
-            Analyze With Gitora AI
-
-        </button>
-
-
-        <p id="aiStatus"></p>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     3 WAYS TO REBUILD
-===================================================== -->
-
-<section class="section">
-
-    <div class="section-header">
-
-        <h2>
-
-            <i class="fa-solid fa-code-branch"></i>
-
-            3 Ways to Rebuild This Project
-
-        </h2>
-
-        <span class="file-count">
-            AI Generated
-        </span>
-
-    </div>
-
-
-    <div
-        class="analysis-grid"
-        id="rebuildWays"
-    >
-
-        <div class="analysis-box">
-
-            <h3>
-
-                <i class="fa-solid fa-1"></i>
-
-                Approach 1
-
-            </h3>
-
-            <p>
-                Waiting for Gitora AI analysis.
-            </p>
-
-        </div>
-
-
-        <div class="analysis-box">
-
-            <h3>
-
-                <i class="fa-solid fa-2"></i>
-
-                Approach 2
-
-            </h3>
-
-            <p>
-                Waiting for Gitora AI analysis.
-            </p>
-
-        </div>
-
-
-        <div class="analysis-box">
-
-            <h3>
-
-                <i class="fa-solid fa-3"></i>
-
-                Approach 3
-
-            </h3>
-
-            <p>
-                Waiting for Gitora AI analysis.
-            </p>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     API REQUESTS
-===================================================== -->
-
-<section class="section">
-
-    <div class="section-header">
-
-        <h2>
-
-            <i class="fa-solid fa-globe"></i>
-
-            Important API Requests
-
-        </h2>
-
-        <span class="file-count">
-            AI detected
-        </span>
-
-    </div>
-
-
-    <div
-        class="requests-list"
-        id="importantRequests"
-    >
-
-        <div class="request-item">
-
-            <strong>
-                Waiting for AI analysis
-            </strong>
-
-            <p>
-                Click "Analyze With Gitora AI" to identify
-                important external API requests.
-            </p>
-
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     FILE-BY-FILE ANALYSIS
-===================================================== -->
-
-<section class="section">
-
-    <div class="section-header">
-
-        <h2>
-
-            <i class="fa-solid fa-file-circle-check"></i>
-
-            File-by-File Explanation
-
-        </h2>
-
-        <span class="file-count">
-
-            {{ source_files|length }} selected
-
-        </span>
-
-    </div>
-
-
-    {% if source_files %}
-
-        {% for file in source_files %}
-
-        <div
-            class="file-analysis-card"
-            data-file-path="{{ file.path }}"
-        >
-
-            <div class="file-analysis-title">
-
-                <div class="file-analysis-name">
-
-                    <i class="fa-solid fa-file-code"></i>
-
-                    <h3>
-                        {{ file.path }}
-                    </h3>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    class="analyze-file-btn"
-                    onclick="analyzeSingleFile(this)"
-                    data-file="{{ file.path }}"
-                >
-
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-
-                    Analyze with AI
-
-                </button>
-
-            </div>
-
-
-            <div class="file-analysis-grid">
-
-                <div class="explanation-item">
-
-                    <strong>
-                        What it does
-                    </strong>
-
-                    <p class="file-does">
-                        Click Analyze with AI.
-                    </p>
-
-                </div>
-
-
-                <div class="explanation-item">
-
-                    <strong>
-                        Why it exists
-                    </strong>
-
-                    <p class="file-why">
-                        AI will explain this.
-                    </p>
-
-                </div>
-
-
-                <div class="explanation-item">
-
-                    <strong>
-                        How it helps the website
-                    </strong>
-
-                    <p class="file-role">
-                        AI will explain this.
-                    </p>
-
-                </div>
-
-
-                <div class="explanation-item">
-
-                    <strong>
-                        Dependencies
-                    </strong>
-
-                    <p class="file-dependencies">
-                        AI will identify dependencies.
-                    </p>
-
-                </div>
-
-
-                <div class="explanation-item">
-
-                    <strong>
-                        Important API Requests
-                    </strong>
-
-                    <p class="file-requests">
-                        AI will identify API requests.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div class="break-box">
-
-                <strong>
-
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-
-                    What breaks without this file?
-
-                </strong>
-
-                <p class="file-breaks">
-                    AI will explain the impact.
-                </p>
-
-            </div>
-
-        </div>
-
-        {% endfor %}
-
-    {% else %}
-
-        <p style="color:#94a3b8">
-            No files have been selected yet.
-        </p>
-
-    {% endif %}
-
-</section>
-
-
-<!-- =====================================================
-     SOURCE CODE
-===================================================== -->
-
-<section class="section">
-
-    <div class="section-header">
-
-        <h2>
-
-            <i class="fa-solid fa-code"></i>
-
-            Source Code Preview
-
-        </h2>
-
-        <span class="file-count">
-
-            {{ source_files|length }} loaded
-
-        </span>
-
-    </div>
-
-
-    {% if source_files %}
-
-        {% for file in source_files %}
-
-        <div class="source-file">
-
-            <div class="source-header">
-
-                <span>
-
-                    <i class="fa-regular fa-file-code"></i>
-
-                    {{ file.path }}
-
-                </span>
-
-
-                <span>
-
-                    {{ file.categories|join(" • ") }}
-
-                </span>
-
-            </div>
-
-
-            <pre><code>{{ file.content }}</code></pre>
-
-        </div>
-
-        {% endfor %}
-
-    {% else %}
-
-        <p style="color:#94a3b8">
-            Save selected files to display their source code.
-        </p>
-
-    {% endif %}
-
-</section>
-
-
-<!-- =====================================================
+</section><!-- =====================================================
      CHAT
-===================================================== -->
+===================================================== --><section class="section"><div class="section-header">
 
-<section class="section">
+    <h2>
 
-    <div class="section-header">
+        <i class="fa-solid fa-comments"></i>
 
-        <h2>
+        Ask Gitora AI
 
-            <i class="fa-solid fa-comments"></i>
-
-            Ask Gitora AI
-
-        </h2>
-
-    </div>
-
-
-    <div
-        class="chat-box"
-        id="chatBox"
-    >
-
-        <div class="chat-message ai">
-
-            <strong>
-                Gitora AI
-            </strong>
-
-            <br><br>
-
-            I can understand the selected source files.
-
-            <br><br>
-
-            Ask questions such as:
-
-            <br><br>
-
-            • What does app.py do?<br>
-            • Why is requests used?<br>
-            • Which file handles weather?<br>
-            • How does the API response reach the website?<br>
-            • What breaks if routes.py is deleted?<br>
-            • Explain the architecture of this project.
-
-        </div>
-
-    </div>
-
-
-    <div class="chat-input">
-
-        <input
-            type="text"
-            id="questionInput"
-            placeholder="Ask Gitora AI about this repository..."
-        >
-
-
-        <button
-            type="button"
-            onclick="askGitoraAI()"
-        >
-
-            <i class="fa-solid fa-paper-plane"></i>
-
-        </button>
-
-    </div>
-
-</section>
-
-
-<!-- =====================================================
-     PDF REPORT
-===================================================== -->
-
-<section class="section pdf-section">
-
-    <div>
-
-        <h2>
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            Complete Gitora AI Report
-
-        </h2>
-
-
-        <p style="color:#94a3b8">
-
-            Includes overall project understanding,
-            3 alternative ways to rebuild the project,
-            file-by-file explanations, important API
-            requests, dependencies, database,
-            authentication and impact analysis.
-
-        </p>
-
-
-        <p id="pdfStatus">
-
-            <i class="fa-solid fa-spinner fa-spin"></i>
-
-            Gitora is preparing your PDF report...
-
-        </p>
-
-    </div>
-
-
-    <form
-        id="pdfReportForm"
-        action="{{ url_for('main.download_report') }}"
-        method="POST"
-    >
-
-        <input
-            type="hidden"
-            name="repository"
-            value="{{ repository.full_name }}"
-        >
-
-
-        <button
-            type="submit"
-            class="pdf-btn"
-            id="pdfButton"
-        >
-
-            <i class="fa-solid fa-file-pdf"></i>
-
-            Generate PDF Report
-
-        </button>
-
-    </form>
-
-</section>
-
+    </h2>
 
 </div>
 
 
-<script>
+<div
+    class="chat-box"
+    id="chatBox"
+>
+
+    <div class="chat-message ai">
+
+        <strong>
+            Gitora AI
+        </strong>
+
+        <br><br>
+
+        I can understand the selected source files.
+
+        <br><br>
+
+        Ask questions such as:
+
+        <br><br>
+
+        • What does app.py do?<br>
+        • Why is requests used?<br>
+        • Which file handles weather?<br>
+        • How does the API response reach the website?<br>
+        • What breaks if routes.py is deleted?<br>
+        • Explain the architecture of this project.
+
+    </div>
+
+</div>
+
+
+<div class="chat-input">
+
+    <input
+        type="text"
+        id="questionInput"
+        placeholder="Ask Gitora AI about this repository..."
+    >
+
+
+    <button
+        type="button"
+        onclick="askGitoraAI()"
+    >
+
+        <i class="fa-solid fa-paper-plane"></i>
+
+    </button>
+
+</div>
+
+</section><!-- =====================================================
+     PDF REPORT
+===================================================== --><section class="section pdf-section"><div>
+
+    <h2>
+
+        <i class="fa-solid fa-file-pdf"></i>
+
+        Complete Gitora AI Report
+
+    </h2>
+
+
+    <p style="color:#94a3b8">
+
+        Includes overall project understanding,
+        3 alternative ways to rebuild the project,
+        file-by-file explanations, important API
+        requests, dependencies, database,
+        authentication and impact analysis.
+
+    </p>
+
+
+    <p id="pdfStatus">
+
+        <i class="fa-solid fa-spinner fa-spin"></i>
+
+        Gitora is preparing your PDF report...
+
+    </p>
+
+</div>
+
+
+<form
+    id="pdfReportForm"
+    action="{{ url_for('main.download_report') }}"
+    method="POST"
+>
+
+    <input
+        type="hidden"
+        name="repository"
+        value="{{ repository.full_name }}"
+    >
+
+
+    <button
+        type="submit"
+        class="pdf-btn"
+        id="pdfButton"
+    >
+
+        <i class="fa-solid fa-file-pdf"></i>
+
+        Generate PDF Report
+
+    </button>
+
+</form>
+
+</section></div><script>
 
 
 /* =====================================================
@@ -2043,52 +1952,95 @@ async function runFullAIAnalysis() {
         }
 
 
-        document.getElementById(
-            "projectSummary"
-        ).textContent =
-            analysis.project_summary ||
-            "No project summary available.";
-
-
-        document.getElementById(
-            "architecture"
-        ).textContent =
-            analysis.architecture ||
-            "Not available.";
-
-
-        document.getElementById(
-            "database"
-        ).textContent =
-            analysis.database ||
-            "Not available.";
-
-
-        document.getElementById(
-            "authentication"
-        ).textContent =
-            analysis.authentication ||
-            "Not available.";
-
-
-        document.getElementById(
-            "technologyStack"
-        ).textContent =
-            formatArray(
-                analysis.technology_stack
+        const projectSummary =
+            document.getElementById(
+                "projectSummary"
             );
 
+        if (projectSummary) {
 
-        document.getElementById(
-            "dependencies"
-        ).textContent =
-            formatArray(
-                analysis.dependencies
+            projectSummary.textContent =
+                analysis.project_summary ||
+                "No project summary available.";
+
+        }
+
+
+        const architecture =
+            document.getElementById(
+                "architecture"
             );
+
+        if (architecture) {
+
+            architecture.textContent =
+                analysis.architecture ||
+                "Not available.";
+
+        }
+
+
+        const database =
+            document.getElementById(
+                "database"
+            );
+
+        if (database) {
+
+            database.textContent =
+                analysis.database ||
+                "Not available.";
+
+        }
+
+
+        const authentication =
+            document.getElementById(
+                "authentication"
+            );
+
+        if (authentication) {
+
+            authentication.textContent =
+                analysis.authentication ||
+                "Not available.";
+
+        }
+
+
+        const technologyStack =
+            document.getElementById(
+                "technologyStack"
+            );
+
+        if (technologyStack) {
+
+            technologyStack.textContent =
+                formatArray(
+                    analysis.technology_stack
+                );
+
+        }
+
+
+        const dependencies =
+            document.getElementById(
+                "dependencies"
+            );
+
+        if (dependencies) {
+
+            dependencies.textContent =
+                formatArray(
+                    analysis.dependencies
+                );
+
+        }
 
 
         renderRequests(
-            analysis.important_requests
+            analysis.important_requests ||
+            analysis.api_requests
         );
 
 
@@ -2278,10 +2230,17 @@ function renderRebuildWays(ways) {
 
 
 /* =====================================================
-   SINGLE FILE AI
+   SINGLE FILE AI ANALYSIS
 ===================================================== */
 
 async function analyzeSingleFile(button) {
+
+    if (!button) {
+
+        return;
+
+    }
+
 
     const filePath =
         button.dataset.file;
@@ -2300,11 +2259,102 @@ async function analyzeSingleFile(button) {
     }
 
 
+    if (button.disabled) {
+
+        return;
+
+    }
+
+
+    const does =
+        card.querySelector(
+            ".file-does"
+        );
+
+
+    const why =
+        card.querySelector(
+            ".file-why"
+        );
+
+
+    const role =
+        card.querySelector(
+            ".file-role"
+        );
+
+
+    const deps =
+        card.querySelector(
+            ".file-dependencies"
+        );
+
+
+    const requests =
+        card.querySelector(
+            ".file-requests"
+        );
+
+
+    const breaks =
+        card.querySelector(
+            ".file-breaks"
+        );
+
+
     button.disabled = true;
 
 
     button.innerHTML =
         '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+
+
+    if (does) {
+
+        does.textContent =
+            "Gitora AI is analyzing this file...";
+
+    }
+
+
+    if (why) {
+
+        why.textContent =
+            "Gitora AI is determining why this file exists...";
+
+    }
+
+
+    if (role) {
+
+        role.textContent =
+            "Gitora AI is determining how this file helps the website...";
+
+    }
+
+
+    if (deps) {
+
+        deps.textContent =
+            "Analyzing dependencies...";
+
+    }
+
+
+    if (requests) {
+
+        requests.textContent =
+            "Analyzing API requests and connections...";
+
+    }
+
+
+    if (breaks) {
+
+        breaks.textContent =
+            "Analyzing what would break if this file were removed...";
+
+    }
 
 
     try {
@@ -2357,18 +2407,21 @@ async function analyzeSingleFile(button) {
 
         if (!data.success) {
 
-            alert(
+            throw new Error(
                 data.message ||
                 "Unable to analyze this file."
             );
 
-            return;
-
         }
 
 
+        const analysis =
+            data.analysis ||
+            data;
+
+
         updateFileCard(
-            data.analysis,
+            analysis,
             card
         );
 
@@ -2378,13 +2431,62 @@ async function analyzeSingleFile(button) {
     catch (error) {
 
         console.error(
-            "SINGLE FILE ERROR:",
+            "SINGLE FILE AI ERROR:",
             error
         );
 
 
+        if (does) {
+
+            does.textContent =
+                "AI analysis failed.";
+
+        }
+
+
+        if (why) {
+
+            why.textContent =
+                "AI analysis failed.";
+
+        }
+
+
+        if (role) {
+
+            role.textContent =
+                "AI analysis failed.";
+
+        }
+
+
+        if (deps) {
+
+            deps.textContent =
+                "AI analysis failed.";
+
+        }
+
+
+        if (requests) {
+
+            requests.textContent =
+                "AI analysis failed.";
+
+        }
+
+
+        if (breaks) {
+
+            breaks.textContent =
+                "AI analysis failed.";
+
+        }
+
+
         alert(
-            "Gitora AI could not connect to the AI service."
+            error.message ||
+            "Gitora AI could not analyze this file."
         );
 
     }
@@ -2426,7 +2528,18 @@ function updateFileCard(
         suppliedCard;
 
 
-    if (!card && item.file) {
+    /*
+     * AI may return the filename using different keys.
+     */
+
+    const returnedFile =
+        item.file ||
+        item.file_path ||
+        item.filename ||
+        item.path;
+
+
+    if (!card && returnedFile) {
 
         const allCards =
             document.querySelectorAll(
@@ -2438,7 +2551,7 @@ function updateFileCard(
 
             if (
                 candidate.dataset.filePath ===
-                item.file
+                returnedFile
             ) {
 
                 card = candidate;
@@ -2493,11 +2606,95 @@ function updateFileCard(
         );
 
 
+    /*
+     * WHAT IT DOES
+     */
+
+    const whatItDoes =
+        item.what_it_does ||
+        item.description ||
+        item.purpose ||
+        item.function ||
+        "Not identifiable from the available code.";
+
+
+    /*
+     * WHY IT EXISTS
+     */
+
+    const whyItExists =
+        item.why_it_exists ||
+        item.why ||
+        item.reason ||
+        "Not identifiable from the available code.";
+
+
+    /*
+     * HOW IT HELPS THE WEBSITE
+     *
+     * Supports:
+     * website_role
+     * how_it_helps
+     * role
+     * connections
+     */
+
+    const websiteRole =
+        item.website_role ||
+        item.how_it_helps ||
+        item.role ||
+        item.connections ||
+        "Not identifiable from the available code.";
+
+
+    /*
+     * DEPENDENCIES
+     */
+
+    const dependencyValue =
+        item.dependencies ||
+        item.required_files ||
+        item.imports ||
+        [];
+
+
+    /*
+     * IMPORTANT API REQUESTS
+     *
+     * Supports:
+     * important_requests
+     * api_requests
+     * requests
+     */
+
+    const requestValue =
+        item.important_requests ||
+        item.api_requests ||
+        item.requests ||
+        [];
+
+
+    /*
+     * WHAT BREAKS
+     *
+     * Supports:
+     * what_breaks
+     * what_breaks_without_it
+     * impact
+     */
+
+    const breakValue =
+        item.what_breaks ||
+        item.what_breaks_without_it ||
+        item.impact ||
+        item.consequence ||
+        "Not identifiable from the available code.";
+
+
     if (does) {
 
         does.textContent =
-            item.what_it_does ||
-            "Not available.";
+            whatItDoes;
 
     }
 
@@ -2505,8 +2702,7 @@ function updateFileCard(
     if (why) {
 
         why.textContent =
-            item.why_it_exists ||
-            "Not available.";
+            whyItExists;
 
     }
 
@@ -2514,8 +2710,7 @@ function updateFileCard(
     if (role) {
 
         role.textContent =
-            item.website_role ||
-            "Not available.";
+            websiteRole;
 
     }
 
@@ -2524,7 +2719,7 @@ function updateFileCard(
 
         deps.textContent =
             formatArray(
-                item.dependencies
+                dependencyValue
             );
 
     }
@@ -2534,7 +2729,7 @@ function updateFileCard(
 
         requests.textContent =
             formatArray(
-                item.important_requests
+                requestValue
             );
 
     }
@@ -2543,10 +2738,18 @@ function updateFileCard(
     if (breaks) {
 
         breaks.textContent =
-            item.what_breaks ||
-            "Not available.";
+            breakValue;
 
     }
+
+
+    /*
+     * Mark the card as successfully analyzed.
+     */
+
+    card.classList.add(
+        "ai-analyzed"
+    );
 
 }
 
@@ -2640,6 +2843,7 @@ function renderRequests(requests) {
                     ${escapeHTML(
                         item.api ||
                         item.service ||
+                        item.endpoint ||
                         "External API"
                     )}
                 </strong>
@@ -2648,6 +2852,7 @@ function renderRequests(requests) {
                     <b>File:</b>
                     ${escapeHTML(
                         item.file ||
+                        item.file_path ||
                         "Not specified"
                     )}
                 </p>
@@ -2665,6 +2870,7 @@ function renderRequests(requests) {
                     <b>How it is used:</b>
                     ${escapeHTML(
                         item.usage ||
+                        item.how_used ||
                         "Not specified"
                     )}
                 </p>
@@ -2928,10 +3134,11 @@ document.addEventListener(
 
             pdfForm.addEventListener(
                 "submit",
-                function() {
+                function(event) {
 
                     /*
-                     * Prevent accidental double-clicks.
+                     * If the form has already been submitted,
+                     * stop accidental double-click submission.
                      */
 
                     if (
@@ -2945,6 +3152,15 @@ document.addEventListener(
 
                     }
 
+
+                    /*
+                     * IMPORTANT:
+                     * Do NOT call event.preventDefault()
+                     * on the first submission.
+                     *
+                     * The browser must continue with the
+                     * normal POST to /download-report.
+                     */
 
                     pdfForm.dataset.submitting =
                         "true";
@@ -2962,6 +3178,7 @@ document.addEventListener(
 
                         pdfStatus.style.display =
                             "block";
+
 
                         pdfStatus.innerHTML = `
 
@@ -2992,7 +3209,8 @@ function formatArray(value) {
 
     if (
         value === null ||
-        value === undefined
+        value === undefined ||
+        value === ""
     ) {
 
         return "None identified.";
@@ -3013,8 +3231,102 @@ function formatArray(value) {
             .map(function(item) {
 
                 if (
+                    item === null ||
+                    item === undefined
+                ) {
+
+                    return "";
+
+                }
+
+
+                if (
                     typeof item === "object"
                 ) {
+
+                    /*
+                     * Format API/dependency objects
+                     * in a readable way rather than
+                     * showing [object Object].
+                     */
+
+                    const parts = [];
+
+
+                    if (item.name) {
+
+                        parts.push(
+                            String(item.name)
+                        );
+
+                    }
+
+
+                    if (item.file) {
+
+                        parts.push(
+                            "File: " +
+                            String(item.file)
+                        );
+
+                    }
+
+
+                    if (item.service) {
+
+                        parts.push(
+                            "Service: " +
+                            String(item.service)
+                        );
+
+                    }
+
+
+                    if (item.api) {
+
+                        parts.push(
+                            "API: " +
+                            String(item.api)
+                        );
+
+                    }
+
+
+                    if (item.endpoint) {
+
+                        parts.push(
+                            "Endpoint: " +
+                            String(item.endpoint)
+                        );
+
+                    }
+
+
+                    if (item.purpose) {
+
+                        parts.push(
+                            "Purpose: " +
+                            String(item.purpose)
+                        );
+
+                    }
+
+
+                    if (item.description) {
+
+                        parts.push(
+                            String(item.description)
+                        );
+
+                    }
+
+
+                    if (parts.length > 0) {
+
+                        return parts.join(" — ");
+
+                    }
+
 
                     try {
 
@@ -3036,6 +3348,11 @@ function formatArray(value) {
                 return String(item);
 
             })
+            .filter(function(item) {
+
+                return item.trim() !== "";
+
+            })
             .join(" • ");
 
     }
@@ -3046,6 +3363,84 @@ function formatArray(value) {
     ) {
 
         try {
+
+            const parts = [];
+
+
+            if (value.name) {
+
+                parts.push(
+                    String(value.name)
+                );
+
+            }
+
+
+            if (value.file) {
+
+                parts.push(
+                    "File: " +
+                    String(value.file)
+                );
+
+            }
+
+
+            if (value.service) {
+
+                parts.push(
+                    "Service: " +
+                    String(value.service)
+                );
+
+            }
+
+
+            if (value.api) {
+
+                parts.push(
+                    "API: " +
+                    String(value.api)
+                );
+
+            }
+
+
+            if (value.endpoint) {
+
+                parts.push(
+                    "Endpoint: " +
+                    String(value.endpoint)
+                );
+
+            }
+
+
+            if (value.purpose) {
+
+                parts.push(
+                    "Purpose: " +
+                    String(value.purpose)
+                );
+
+            }
+
+
+            if (value.description) {
+
+                parts.push(
+                    String(value.description)
+                );
+
+            }
+
+
+            if (parts.length > 0) {
+
+                return parts.join(" — ");
+
+            }
+
 
             return JSON.stringify(value);
 
@@ -3088,8 +3483,4 @@ function escapeHTML(text) {
 
 }
 
-</script>
-
-</body>
-
-</html>
+</script></body></html>
