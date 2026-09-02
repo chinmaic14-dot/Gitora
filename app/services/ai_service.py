@@ -1,37 +1,39 @@
-# app/services/ai_service.py
-
 import json
 import re
 import os
 
-from openai import OpenAI
+from google import genai
 
 
-# =====================================================
-# OPENAI CONFIGURATION
-# =====================================================
+# ============================================================
+# GEMINI CONFIGURATION
+# ============================================================
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 MODEL = os.getenv(
-    "OPENAI_MODEL",
-    "gpt-4o-mini"
+    "GEMINI_MODEL",
+    "gemini-2.5-flash"
 )
 
-OPENAI_API_KEY = os.getenv(
-    "OPENAI_API_KEY"
-)
+client = None
 
-client = (
-    OpenAI(api_key=OPENAI_API_KEY)
-    if OPENAI_API_KEY
-    else None
-)
+if GEMINI_API_KEY:
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print("\n========== GITORA GEMINI CLIENT ERROR ==========")
+        print(repr(e))
+        print("=================================================\n")
+        client = None
+
 
 NIL = "None identified."
 
 
-# =====================================================
-# SAFE VALUE
-# =====================================================
+# ============================================================
+# BASIC HELPERS
+# ============================================================
 
 def safe_value(value, default=NIL):
 
@@ -42,28 +44,13 @@ def safe_value(value, default=NIL):
 
         value = value.strip()
 
-        return value if value else default
-
-    if isinstance(value, list):
-
         if not value:
-            return []
+            return default
 
         return value
 
-    if isinstance(value, dict):
+    return value
 
-        if not value:
-            return {}
-
-        return value
-
-    return str(value)
-
-
-# =====================================================
-# NORMALIZE LIST
-# =====================================================
 
 def normalize_list(value):
 
@@ -72,6 +59,9 @@ def normalize_list(value):
 
     if isinstance(value, list):
         return value
+
+    if isinstance(value, tuple):
+        return list(value)
 
     if isinstance(value, str):
 
@@ -82,95 +72,97 @@ def normalize_list(value):
 
         return [value]
 
-    return [str(value)]
+    return [value]
 
 
-# =====================================================
-# BUILD REPOSITORY CONTEXT
-# =====================================================
+# ============================================================
+# REPOSITORY CONTEXT
+# ============================================================
 
 def build_repository_context(repository, files):
 
-    context = []
+    repository = repository or {}
 
-    context.append(
-        f"Repository: {repository.get('full_name', '')}"
+    parts = []
+
+    parts.append(
+        "GITORA REPOSITORY ANALYSIS\n"
     )
 
-    context.append(
-        f"Repository name: {repository.get('name', '')}"
+    parts.append(
+        f"Repository: "
+        f"{repository.get('full_name', 'Unknown')}"
     )
 
-    context.append(
+    parts.append(
+        f"Description: "
+        f"{repository.get('description', NIL)}"
+    )
+
+    parts.append(
         f"Default branch: "
-        f"{repository.get('default_branch', '')}"
+        f"{repository.get('default_branch', NIL)}"
     )
 
-    context.append(
-        """
-IMPORTANT ANALYSIS RULES:
-
-The following is the ACTUAL source code supplied
-from the repository.
-
-Analyze ONLY this supplied source code.
-
-DO NOT invent:
-
-- frameworks
-- libraries
-- APIs
-- databases
-- authentication
-- commands
-- environment variables
-- features
-- routes
-- files
-- deployment systems
-
-If something cannot be determined from the supplied
-source code, explicitly say:
-
-"None identified."
-
-For setup/run instructions, only provide commands
-that can reasonably be determined from visible files.
-"""
+    parts.append(
+        f"Language: "
+        f"{repository.get('language', NIL)}"
     )
 
-    for file in files:
+    parts.append(
+        "\nIMPORTANT RULES:\n"
+        "- Analyze ONLY the supplied repository information and source code.\n"
+        "- Do not invent frameworks.\n"
+        "- Do not invent APIs.\n"
+        "- Do not invent databases.\n"
+        "- Do not invent authentication systems.\n"
+        "- Do not invent files that were not supplied.\n"
+        "- If something cannot be determined, say 'None identified.'\n"
+    )
 
-        path = file.get("path", "")
+    parts.append("\nSOURCE FILES:\n")
 
-        content = file.get("content", "")
+    for file_item in files or []:
 
-        if content is None:
-            content = ""
+        if isinstance(file_item, dict):
 
-        content = str(content)
-
-        if len(content) > 30000:
-
-            content = (
-                content[:30000]
-                + "\n\n[GITORA AI: FILE TRUNCATED]\n"
+            path = (
+                file_item.get("path")
+                or file_item.get("name")
+                or "unknown"
             )
 
-        context.append(
-            f"\n===== FILE: {path} =====\n"
+            content = (
+                file_item.get("content")
+                or ""
+            )
+
+        else:
+
+            path = str(file_item)
+            content = ""
+
+        # Prevent extremely large prompts.
+        content = content[:30000]
+
+        parts.append(
+            f"\n========== FILE: {path} ==========\n"
         )
 
-        context.append(content)
+        parts.append(content)
 
-    return "\n".join(context)
+        parts.append(
+            f"\n========== END FILE: {path} ==========\n"
+        )
+
+    return "\n".join(parts)
 
 
-# =====================================================
-# EMPTY FULL ANALYSIS
-# =====================================================
+# ============================================================
+# EMPTY RESPONSES
+# ============================================================
 
-def empty_analysis(message="No analysis available."):
+def empty_analysis(message=NIL):
 
     return {
 
@@ -200,6 +192,8 @@ def empty_analysis(message="No analysis available."):
 
         "rebuild_ways": [],
 
+        "rebuild_options": [],
+
         "estimated_development_time": message,
 
         "run_instructions": [],
@@ -208,36 +202,29 @@ def empty_analysis(message="No analysis available."):
     }
 
 
-# =====================================================
-# EMPTY FILE ANALYSIS
-# =====================================================
-
-def empty_file_analysis(
-    file_path,
-    message="No analysis available."
-):
+def empty_file_analysis(message=NIL):
 
     return {
 
-        "file": file_path,
+        "file": "",
 
         "what_it_does": message,
 
         "why_it_exists": message,
 
-        "website_role": message,
+        "what_breaks_without_it": message,
+
+        "important_code": [],
 
         "dependencies": [],
 
-        "important_requests": [],
-
-        "what_breaks": message
+        "connections": []
     }
 
 
-# =====================================================
-# EXTRACT JSON
-# =====================================================
+# ============================================================
+# JSON EXTRACTION
+# ============================================================
 
 def extract_json(text):
 
@@ -246,21 +233,7 @@ def extract_json(text):
 
     text = text.strip()
 
-    # -------------------------------------------------
-    # DIRECT JSON
-    # -------------------------------------------------
-
-    try:
-
-        return json.loads(text)
-
-    except Exception:
-        pass
-
-    # -------------------------------------------------
-    # REMOVE MARKDOWN CODE BLOCK
-    # -------------------------------------------------
-
+    # Remove markdown code fences.
     text = re.sub(
         r"^```(?:json)?\s*",
         "",
@@ -277,556 +250,220 @@ def extract_json(text):
     text = text.strip()
 
     try:
-
         return json.loads(text)
 
     except Exception:
         pass
 
-    # -------------------------------------------------
-    # FIND JSON OBJECT INSIDE RESPONSE
-    # -------------------------------------------------
-
+    # Try to locate the first JSON object.
     start = text.find("{")
+    end = text.rfind("}")
 
-    if start == -1:
-        return None
+    if start != -1 and end != -1 and end > start:
 
-    depth = 0
-    in_string = False
-    escaped = False
+        candidate = text[start:end + 1]
 
-    for index in range(
-        start,
-        len(text)
-    ):
+        try:
+            return json.loads(candidate)
 
-        char = text[index]
-
-        if escaped:
-
-            escaped = False
-
-            continue
-
-        if char == "\\" and in_string:
-
-            escaped = True
-
-            continue
-
-        if char == '"':
-
-            in_string = not in_string
-
-            continue
-
-        if in_string:
-            continue
-
-        if char == "{":
-
-            depth += 1
-
-        elif char == "}":
-
-            depth -= 1
-
-            if depth == 0:
-
-                candidate = text[
-                    start:index + 1
-                ]
-
-                try:
-
-                    return json.loads(
-                        candidate
-                    )
-
-                except Exception:
-
-                    return None
+        except Exception:
+            pass
 
     return None
 
 
-# =====================================================
-# NORMALIZE FULL ANALYSIS
-# =====================================================
+# ============================================================
+# NORMALIZE REPOSITORY ANALYSIS
+# ============================================================
 
 def normalize_analysis(result):
 
     if not isinstance(result, dict):
 
         return empty_analysis(
-            "Gitora AI returned an invalid analysis."
+            "Gemini returned an invalid analysis response."
         )
 
     result["project_summary"] = safe_value(
-        result.get(
-            "project_summary",
-            NIL
-        )
-    )
-
-    result["architecture"] = safe_value(
-        result.get(
-            "architecture",
-            NIL
-        )
-    )
-
-    result["database"] = safe_value(
-        result.get(
-            "database",
-            NIL
-        )
-    )
-
-    result["authentication"] = safe_value(
-        result.get(
-            "authentication",
-            NIL
-        )
-    )
-
-    result["folder_structure"] = safe_value(
-        result.get(
-            "folder_structure",
-            NIL
-        )
-    )
-
-    result["estimated_development_time"] = safe_value(
-        result.get(
-            "estimated_development_time",
-            NIL
-        )
+        result.get("project_summary")
     )
 
     result["technology_stack"] = normalize_list(
-        result.get(
-            "technology_stack",
-            []
-        )
+        result.get("technology_stack")
+    )
+
+    result["architecture"] = safe_value(
+        result.get("architecture")
     )
 
     result["dependencies"] = normalize_list(
-        result.get(
-            "dependencies",
-            []
-        )
+        result.get("dependencies")
+    )
+
+    result["database"] = safe_value(
+        result.get("database")
+    )
+
+    result["authentication"] = safe_value(
+        result.get("authentication")
     )
 
     result["important_requests"] = normalize_list(
-        result.get(
-            "important_requests",
-            []
-        )
+        result.get("important_requests")
+    )
+
+    result["file_analysis"] = normalize_list(
+        result.get("file_analysis")
     )
 
     result["project_flow"] = normalize_list(
-        result.get(
-            "project_flow",
-            []
-        )
+        result.get("project_flow")
     )
 
     result["important_files"] = normalize_list(
-        result.get(
-            "important_files",
-            []
-        )
+        result.get("important_files")
     )
 
     result["failure_points"] = normalize_list(
-        result.get(
-            "failure_points",
-            []
+        result.get("failure_points")
+    )
+
+    # --------------------------------------------------------
+    # Rebuild ways
+    # --------------------------------------------------------
+
+    rebuild_ways = result.get("rebuild_ways")
+
+    if not rebuild_ways:
+
+        rebuild_ways = result.get(
+            "rebuild_options"
         )
+
+    if not rebuild_ways:
+
+        rebuild_ways = result.get(
+            "build_approaches"
+        )
+
+    rebuild_ways = normalize_list(
+        rebuild_ways
+    )
+
+    result["rebuild_ways"] = rebuild_ways[:3]
+
+    # Keep all aliases for compatibility with routes/frontend.
+    result["rebuild_options"] = result["rebuild_ways"]
+
+    result["build_approaches"] = result["rebuild_ways"]
+
+    result["estimated_development_time"] = safe_value(
+        result.get("estimated_development_time")
     )
 
     result["run_instructions"] = normalize_list(
-        result.get(
-            "run_instructions",
-            []
-        )
+        result.get("run_instructions")
     )
 
-    # -------------------------------------------------
-    # FILE ANALYSIS
-    # -------------------------------------------------
-
-    if not isinstance(
-        result.get("file_analysis"),
-        list
-    ):
-
-        result["file_analysis"] = []
-
-    normalized_files = []
-
-    for item in result["file_analysis"]:
-
-        if not isinstance(item, dict):
-            continue
-
-        normalized_files.append({
-
-            "file":
-                safe_value(
-                    item.get(
-                        "file",
-                        ""
-                    )
-                ),
-
-            "what_it_does":
-                safe_value(
-                    item.get(
-                        "what_it_does",
-                        NIL
-                    )
-                ),
-
-            "why_it_exists":
-                safe_value(
-                    item.get(
-                        "why_it_exists",
-                        NIL
-                    )
-                ),
-
-            "website_role":
-                safe_value(
-                    item.get(
-                        "website_role",
-                        NIL
-                    )
-                ),
-
-            "dependencies":
-                normalize_list(
-                    item.get(
-                        "dependencies",
-                        []
-                    )
-                ),
-
-            "important_requests":
-                normalize_list(
-                    item.get(
-                        "important_requests",
-                        []
-                    )
-                ),
-
-            "what_breaks":
-                safe_value(
-                    item.get(
-                        "what_breaks",
-                        NIL
-                    )
-                )
-        })
-
-    result["file_analysis"] = normalized_files
-
-    # -------------------------------------------------
-    # REBUILD STRATEGIES
-    # -------------------------------------------------
-
-    rebuild_ways = result.get(
-        "rebuild_ways"
+    result["folder_structure"] = safe_value(
+        result.get("folder_structure")
     )
-
-    if rebuild_ways is None:
-
-        rebuild_ways = result.get(
-            "build_approaches",
-            []
-        )
-
-    if rebuild_ways is None:
-
-        rebuild_ways = result.get(
-            "rebuild_options",
-            []
-        )
-
-    if not isinstance(
-        rebuild_ways,
-        list
-    ):
-
-        rebuild_ways = []
-
-    normalized_rebuild = []
-
-    for item in rebuild_ways:
-
-        if isinstance(item, str):
-
-            normalized_rebuild.append({
-
-                "name": "Rebuild Approach",
-
-                "approach": item,
-
-                "description": item,
-
-                "technologies": [],
-
-                "architecture": "",
-
-                "steps": [],
-
-                "advantages": [],
-
-                "limitations": [],
-
-                "estimated_time": ""
-            })
-
-            continue
-
-        if not isinstance(item, dict):
-            continue
-
-        normalized_rebuild.append({
-
-            "name":
-                safe_value(
-                    item.get(
-                        "name",
-                        "Rebuild Approach"
-                    ),
-                    "Rebuild Approach"
-                ),
-
-            "approach":
-                safe_value(
-                    item.get(
-                        "approach",
-                        item.get(
-                            "description",
-                            NIL
-                        )
-                    )
-                ),
-
-            "description":
-                safe_value(
-                    item.get(
-                        "description",
-                        item.get(
-                            "approach",
-                            NIL
-                        )
-                    )
-                ),
-
-            "technologies":
-                normalize_list(
-                    item.get(
-                        "technologies",
-                        []
-                    )
-                ),
-
-            "architecture":
-                safe_value(
-                    item.get(
-                        "architecture",
-                        NIL
-                    )
-                ),
-
-            "steps":
-                normalize_list(
-                    item.get(
-                        "steps",
-                        []
-                    )
-                ),
-
-            "advantages":
-                normalize_list(
-                    item.get(
-                        "advantages",
-                        []
-                    )
-                ),
-
-            "limitations":
-                normalize_list(
-                    item.get(
-                        "limitations",
-                        []
-                    )
-                ),
-
-            "estimated_time":
-                safe_value(
-                    item.get(
-                        "estimated_time",
-                        NIL
-                    )
-                )
-        })
-
-    result["rebuild_ways"] = normalized_rebuild[:3]
-
-    result["build_approaches"] = result[
-        "rebuild_ways"
-    ]
 
     return result
 
 
-# =====================================================
-# NORMALIZE SINGLE FILE
-# =====================================================
+# ============================================================
+# NORMALIZE FILE ANALYSIS
+# ============================================================
 
-def normalize_file_analysis(
-    result,
-    file_path
-):
+def normalize_file_analysis(result):
 
-    if not isinstance(
-        result,
-        dict
-    ):
+    if not isinstance(result, dict):
 
         return empty_file_analysis(
-            file_path,
-            "Gitora AI returned an invalid analysis."
+            "Gemini returned an invalid file analysis."
         )
 
-    return {
+    result["file"] = safe_value(
+        result.get("file"),
+        ""
+    )
 
-        "file":
-            safe_value(
-                result.get(
-                    "file",
-                    file_path
-                ),
-                file_path
-            ),
+    result["what_it_does"] = safe_value(
+        result.get("what_it_does")
+    )
 
-        "what_it_does":
-            safe_value(
-                result.get(
-                    "what_it_does",
-                    NIL
-                )
-            ),
+    result["why_it_exists"] = safe_value(
+        result.get("why_it_exists")
+    )
 
-        "why_it_exists":
-            safe_value(
-                result.get(
-                    "why_it_exists",
-                    NIL
-                )
-            ),
+    result["what_breaks_without_it"] = safe_value(
+        result.get("what_breaks_without_it")
+    )
 
-        "website_role":
-            safe_value(
-                result.get(
-                    "website_role",
-                    NIL
-                )
-            ),
+    result["important_code"] = normalize_list(
+        result.get("important_code")
+    )
 
-        "dependencies":
-            normalize_list(
-                result.get(
-                    "dependencies",
-                    []
-                )
-            ),
+    result["dependencies"] = normalize_list(
+        result.get("dependencies")
+    )
 
-        "important_requests":
-            normalize_list(
-                result.get(
-                    "important_requests",
-                    []
-                )
-            ),
+    result["connections"] = normalize_list(
+        result.get("connections")
+    )
 
-        "what_breaks":
-            safe_value(
-                result.get(
-                    "what_breaks",
-                    NIL
-                )
-            )
-    }
+    return result
 
 
-# =====================================================
-# OPENAI JSON CALL
-# =====================================================
+# ============================================================
+# GEMINI JSON CALL
+# ============================================================
 
-def call_openai_json(
+def call_gemini_json(
     system_prompt,
-    user_prompt,
-    retry_prompt=None
+    user_prompt
 ):
 
     if client is None:
 
         print(
-            "\n========== GITORA OPENAI ERROR =========="
+            "\n========== GITORA GEMINI ERROR =========="
         )
 
         print(
-            "OPENAI_API_KEY is not configured."
+            "GEMINI_API_KEY is not configured."
         )
 
         print(
-            "==========================================\n"
+            "=========================================\n"
         )
 
         return None
 
-    # -------------------------------------------------
-    # FIRST ATTEMPT
-    # -------------------------------------------------
-
     try:
 
-        response = client.chat.completions.create(
+        prompt = (
+            system_prompt
+            + "\n\n"
+            + user_prompt
+        )
+
+        response = client.models.generate_content(
 
             model=MODEL,
 
-            messages=[
+            contents=prompt,
 
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-
-            ],
-
-            response_format={
-                "type": "json_object"
+            config={
+                "response_mime_type": "application/json"
             }
-
         )
 
-        raw = response.choices[
-            0
-        ].message.content
+        raw = response.text
 
         print(
-            "\n========== GITORA OPENAI RESPONSE =========="
+            "\n========== GITORA GEMINI RESPONSE =========="
         )
 
         print(raw)
@@ -835,114 +472,59 @@ def call_openai_json(
             "=============================================\n"
         )
 
-        result = extract_json(raw)
+        parsed = extract_json(raw)
 
-        if result is not None:
-
-            return result
+        if parsed is not None:
+            return parsed
 
         print(
-            "\n========== GITORA JSON PARSE FAILED =========="
+            "\n========== GITORA GEMINI JSON ERROR =========="
         )
 
-        print(raw)
+        print(
+            "Gemini response could not be parsed as JSON."
+        )
 
         print(
             "===============================================\n"
         )
 
-    except Exception as error:
+        return None
+
+    except Exception as e:
 
         print(
-            "\n========== GITORA OPENAI ERROR =========="
+            "\n========== GITORA GEMINI ERROR =========="
         )
-
-        print(error)
 
         print(
-            "==========================================\n"
+            f"Error type: {type(e).__name__}"
         )
 
-    # -------------------------------------------------
-    # SECOND ATTEMPT
-    # -------------------------------------------------
+        print(
+            f"Error: {repr(e)}"
+        )
 
-    if retry_prompt:
+        print(
+            "=========================================\n"
+        )
 
-        try:
-
-            response = client.chat.completions.create(
-
-                model=MODEL,
-
-                messages=[
-
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-
-                    {
-                        "role": "user",
-                        "content": retry_prompt
-                    }
-
-                ],
-
-                response_format={
-                    "type": "json_object"
-                }
-
-            )
-
-            raw = response.choices[
-                0
-            ].message.content
-
-            print(
-                "\n========== GITORA RETRY RESPONSE =========="
-            )
-
-            print(raw)
-
-            print(
-                "===========================================\n"
-            )
-
-            result = extract_json(raw)
-
-            if result is not None:
-
-                return result
-
-        except Exception as error:
-
-            print(
-                "\n========== GITORA RETRY ERROR =========="
-            )
-
-            print(error)
-
-            print(
-                "========================================\n"
-            )
-
-    return None
+        return None
 
 
-# =====================================================
+# ============================================================
 # FULL REPOSITORY ANALYSIS
-# =====================================================
+# ============================================================
 
 def analyze_repository(
     repository,
     files
 ):
 
-    if not files:
+    if client is None:
 
         return empty_analysis(
-            "No files have been selected."
+            "Gemini API key is not configured."
         )
 
     context = build_repository_context(
@@ -951,396 +533,66 @@ def analyze_repository(
     )
 
     system_prompt = """
-You are Gitora AI, a professional software
-repository intelligence assistant.
+You are Gitora, an expert software repository analyst.
 
-Analyze ONLY the actual source code supplied.
+Analyze the supplied GitHub repository source code.
 
-NEVER invent functionality.
+Your analysis MUST be based only on the supplied repository
+metadata and source files.
 
-NEVER assume something exists unless visible
-in the supplied files.
-
-Your response MUST contain ONLY valid JSON.
-
-=================================================
-EXACT JSON STRUCTURE
-=================================================
-
-{
-  "project_summary": "",
-  "technology_stack": [],
-  "architecture": "",
-  "dependencies": [],
-  "database": "",
-  "authentication": "",
-  "important_requests": [],
-  "file_analysis": [],
-  "project_flow": [],
-  "important_files": [],
-  "failure_points": [],
-  "rebuild_ways": [],
-  "estimated_development_time": "",
-  "run_instructions": [],
-  "folder_structure": ""
-}
-
-=================================================
-PROJECT SUMMARY
-=================================================
-
-project_summary:
-
-Clearly explain what the actual project does.
-
-Only describe functionality visible in the source.
-
-=================================================
-TECHNOLOGY STACK
-=================================================
-
-technology_stack:
-
-List actual:
-
-- programming languages
-- frameworks
-- libraries
-- tools
-- platforms
-
-Only if visible in source files.
-
-=================================================
-ARCHITECTURE
-=================================================
-
-architecture:
-
-Explain how the actual components communicate.
-
-Only describe connections visible in code.
-
-=================================================
-DEPENDENCIES
-=================================================
-
-dependencies:
-
-Identify actual dependencies from:
-
-- imports
-- requirements files
-- package files
-- configuration files
-
-Do not invent packages.
-
-=================================================
-DATABASE
-=================================================
-
-database:
-
-Explain:
-
-- database technology
-- models
-- tables
-- schemas
-- ORM
-- database connection
-
-Only if visible.
-
-If absent:
-
-"None identified."
-
-=================================================
-AUTHENTICATION
-=================================================
-
-authentication:
-
-Identify actual:
-
-- login
-- signup
-- sessions
-- JWT
-- OAuth
-- tokens
-- password handling
-
-If absent:
-
-"None identified."
-
-=================================================
-IMPORTANT API REQUESTS
-=================================================
-
-important_requests:
-
-Only identify actual network/API requests.
-
-Each object:
-
-{
-  "api": "",
-  "file": "",
-  "purpose": "",
-  "usage": ""
-}
-
-Do not invent API endpoints.
-
-=================================================
-FILE ANALYSIS
-=================================================
-
-Create ONE object for EVERY supplied source file.
-
-Structure:
-
-{
-  "file": "",
-  "what_it_does": "",
-  "why_it_exists": "",
-  "website_role": "",
-  "dependencies": [],
-  "important_requests": [],
-  "what_breaks": ""
-}
-
-Do not skip supplied files.
-
-=================================================
-PROJECT FLOW
-=================================================
-
-project_flow:
-
-Explain the ACTUAL execution flow step-by-step.
-
-Only include steps supported by source code.
-
-=================================================
-IMPORTANT FILES
-=================================================
-
-important_files:
-
-Identify the most important files.
-
-Each object:
-
-{
-  "file": "",
-  "importance": "",
-  "reason": ""
-}
-
-=================================================
-FAILURE POINTS
-=================================================
-
-failure_points:
-
-Identify realistic problems visible from the source.
-
-Each object:
-
-{
-  "area": "",
-  "risk": "",
-  "reason": "",
-  "affected_files": []
-}
-
-Do not invent vulnerabilities.
-
-=================================================
-3 WAYS TO REBUILD
-=================================================
-
-rebuild_ways:
-
-Generate exactly THREE meaningful alternatives
-for rebuilding the SAME project.
-
-Approach 1:
-Beginner / Simple
-
-Approach 2:
-Modern / Production
-
-Approach 3:
-Scalable / Advanced
-
-Each object:
-
-{
-  "name": "",
-  "approach": "",
-  "description": "",
-  "technologies": [],
-  "architecture": "",
-  "steps": [],
-  "advantages": [],
-  "limitations": [],
-  "estimated_time": ""
-}
-
-Clearly separate alternatives from the existing project.
-
-=================================================
-ESTIMATED DEVELOPMENT TIME
-=================================================
-
-estimated_development_time:
-
-Give a realistic rough estimate for rebuilding
-a similar project from scratch.
-
-=================================================
-RUN / SETUP INSTRUCTIONS
-=================================================
-
-run_instructions:
-
-Automatically determine how the supplied project
-can be installed and started.
-
-Look for actual evidence such as:
-
-- requirements.txt
-- package.json
-- package-lock.json
-- pyproject.toml
-- Pipfile
-- Dockerfile
-- docker-compose.yml
-- .env examples
-- Flask app
-- Django manage.py
-- Node scripts
-- Python entry points
-- README instructions
-
-Return practical steps.
-
-Only provide commands that can be determined
-from the supplied files.
-
-Do NOT invent commands.
-
-For environment variables, only mention variables
-actually visible in the source.
-
-NEVER expose actual secret values.
-
-=================================================
-FOLDER STRUCTURE
-=================================================
-
-folder_structure:
-
-Describe the actual visible file/folder structure.
-
-Do not invent missing folders.
-
-=================================================
-FINAL RULE
-=================================================
-
-If information is unavailable:
-
-Use:
-
-"None identified."
-
-or:
-
-"Could not be determined from supplied files."
-
-Return ONLY JSON.
-"""
-
-    user_prompt = f"""
-Analyze this repository.
-
-Repository:
-{repository.get('full_name', '')}
-
-SOURCE CODE:
-
-{context}
-"""
-
-    retry_prompt = f"""
-The previous response was invalid or incomplete.
+Do not invent technologies, APIs, databases, authentication,
+routes, dependencies, files, or functionality.
 
 Return ONLY valid JSON.
 
-No Markdown.
-No Python.
-No explanation.
+The JSON must contain these fields:
 
-Analyze ONLY this supplied repository source.
-
-{context}
-
-The JSON MUST contain exactly these major fields:
-
-{{
-  "project_summary": "",
-  "technology_stack": [],
-  "architecture": "",
-  "dependencies": [],
-  "database": "",
-  "authentication": "",
-  "important_requests": [],
-  "file_analysis": [],
-  "project_flow": [],
-  "important_files": [],
-  "failure_points": [],
-  "rebuild_ways": [],
-  "estimated_development_time": "",
-  "run_instructions": [],
-  "folder_structure": ""
-}}
+{
+    "project_summary": "",
+    "technology_stack": [],
+    "architecture": "",
+    "dependencies": [],
+    "database": "",
+    "authentication": "",
+    "important_requests": [],
+    "file_analysis": [],
+    "project_flow": [],
+    "important_files": [],
+    "failure_points": [],
+    "rebuild_ways": [],
+    "estimated_development_time": "",
+    "run_instructions": [],
+    "folder_structure": ""
+}
 
 IMPORTANT:
 
-The file_analysis array MUST contain one entry
-for EVERY supplied file.
-
-The rebuild_ways array MUST contain exactly
-THREE strategies.
-
-run_instructions MUST contain actual setup/run
-instructions only when they can be determined
-from the supplied files.
-
-Do not invent commands.
+- file_analysis must analyze every supplied file.
+- rebuild_ways must contain exactly 3 practical ways to rebuild
+  or improve the project.
+- Explain the actual architecture found in the code.
+- Identify actual routes/API endpoints when visible.
+- Identify actual database models when visible.
+- Identify actual authentication when visible.
+- Explain what each important file does.
+- Mention missing or risky areas only when supported by the code.
 """
 
-    result = call_openai_json(
+    user_prompt = f"""
+Analyze this repository:
 
-        system_prompt=system_prompt,
+{context}
+"""
 
-        user_prompt=user_prompt,
-
-        retry_prompt=retry_prompt
+    result = call_gemini_json(
+        system_prompt,
+        user_prompt
     )
 
     if result is None:
 
         return empty_analysis(
-            "Gitora AI could not produce a valid "
-            "structured analysis."
+            "Gemini analysis failed. Check the terminal for the exact error."
         )
 
     return normalize_analysis(
@@ -1348,187 +600,123 @@ Do not invent commands.
     )
 
 
-# =====================================================
-# INDIVIDUAL FILE ANALYSIS
-# =====================================================
+# ============================================================
+# SINGLE FILE ANALYSIS
+# ============================================================
 
 def analyze_single_file(
     repository,
-    file_path,
-    content,
-    all_files=None
+    files,
+    selected_file
 ):
 
-    if not content:
+    if client is None:
 
         return empty_file_analysis(
-            file_path,
-            "No source code was available."
+            "Gemini API key is not configured."
         )
 
-    context = ""
+    selected_content = ""
 
-    if all_files:
+    for file_item in files or []:
 
-        for file in all_files:
+        if not isinstance(file_item, dict):
+            continue
 
-            other_path = file.get(
-                "path",
-                ""
+        path = (
+            file_item.get("path")
+            or file_item.get("name")
+            or ""
+        )
+
+        if path == selected_file:
+
+            selected_content = (
+                file_item.get("content")
+                or ""
             )
 
-            other_content = file.get(
-                "content",
-                ""
-            )
+            break
 
-            if other_content is None:
+    if not selected_content:
 
-                other_content = ""
+        return empty_file_analysis(
+            f"File '{selected_file}' was not found."
+        )
 
-            other_content = str(
-                other_content
-            )
-
-            if len(other_content) > 12000:
-
-                other_content = (
-                    other_content[:12000]
-                    + "\n[TRUNCATED]"
-                )
-
-            context += (
-                f"\n===== {other_path} =====\n"
-            )
-
-            context += other_content
+    selected_content = selected_content[:30000]
 
     system_prompt = """
-You are Gitora AI.
+You are Gitora, an expert software engineer.
 
-Analyze ONE actual source file.
+Analyze ONE source file from a GitHub repository.
 
-Use ONLY supplied source code.
+Use only the supplied source code.
 
 Do not invent functionality.
 
-Return ONLY valid JSON.
-
-Use exactly:
+Return ONLY valid JSON with exactly these fields:
 
 {
-  "file": "",
-  "what_it_does": "",
-  "why_it_exists": "",
-  "website_role": "",
-  "dependencies": [],
-  "important_requests": [],
-  "what_breaks": ""
+    "file": "",
+    "what_it_does": "",
+    "why_it_exists": "",
+    "what_breaks_without_it": "",
+    "important_code": [],
+    "dependencies": [],
+    "connections": []
 }
-
-Explain:
-
-1. What the file does.
-2. Why the file exists.
-3. How it contributes to the website/project.
-4. What libraries/files it depends on.
-5. What external API requests it makes.
-6. What would break if it were removed.
-
-If there are no API requests:
-
-"important_requests": []
-
-If something cannot be determined:
-
-"None identified."
-
-Return ONLY JSON.
 """
 
     user_prompt = f"""
 Repository:
-{repository.get('full_name', '')}
+{repository.get('full_name', 'Unknown') if repository else 'Unknown'}
 
-TARGET FILE:
-{file_path}
+File:
+{selected_file}
 
-SOURCE CODE:
+Source code:
 
-{content}
-
-OTHER SELECTED FILES FOR CONTEXT:
-
-{context}
+========== SOURCE ==========
+{selected_content}
+========== END SOURCE ==========
 """
 
-    retry_prompt = f"""
-Return ONLY valid JSON.
-
-No Markdown.
-No Python.
-No explanation.
-
-{{
-  "file": "{file_path}",
-  "what_it_does": "",
-  "why_it_exists": "",
-  "website_role": "",
-  "dependencies": [],
-  "important_requests": [],
-  "what_breaks": ""
-}}
-
-Analyze ONLY this actual file:
-
-{content}
-"""
-
-    result = call_openai_json(
-
-        system_prompt=system_prompt,
-
-        user_prompt=user_prompt,
-
-        retry_prompt=retry_prompt
+    result = call_gemini_json(
+        system_prompt,
+        user_prompt
     )
 
     if result is None:
 
         return empty_file_analysis(
-            file_path,
-            "Gitora AI could not produce a valid "
-            "structured analysis."
+            "Gemini file analysis failed."
         )
 
-    return normalize_file_analysis(
-        result,
-        file_path
+    result = normalize_file_analysis(
+        result
     )
 
+    if not result.get("file"):
+        result["file"] = selected_file
 
-# =====================================================
-# ASK GITORA AI
-# =====================================================
+    return result
+
+
+# ============================================================
+# ASK AI
+# ============================================================
 
 def answer_repository_question(
-    question,
     repository,
-    files
+    files,
+    question
 ):
-
-    if not files:
-
-        return (
-            "No files have been selected. "
-            "Please select and save repository files first."
-        )
 
     if client is None:
 
         return (
-            "Gitora AI is not configured. "
-            "Please configure OPENAI_API_KEY."
+            "Gemini API key is not configured."
         )
 
     context = build_repository_context(
@@ -1537,34 +725,23 @@ def answer_repository_question(
     )
 
     system_prompt = """
-You are Gitora AI.
+You are Gitora's repository assistant.
 
-Answer questions about the ACTUAL repository
-source code supplied by the user.
+Answer questions about the supplied repository.
 
-Rules:
+Use only the supplied repository information and source code.
 
-1. Use only supplied source code.
-2. Do not invent functionality.
-3. Mention exact filenames when useful.
-4. Explain concepts clearly.
-5. Explain API requests when relevant.
-6. Explain setup/run behavior when relevant.
-7. If information cannot be determined,
-   explicitly say so.
-8. Focus on the actual repository.
+Do not invent files, APIs, frameworks, databases,
+authentication, or behavior.
 
-Return a normal helpful answer.
+If the answer cannot be determined from the supplied
+repository, clearly say so.
 
-Do NOT pretend that something exists if it is
-not visible in the supplied code.
+Give a clear and useful technical answer.
 """
 
     user_prompt = f"""
-Repository:
-{repository.get('full_name', '')}
-
-SOURCE CODE:
+Repository context:
 
 {context}
 
@@ -1575,61 +752,57 @@ USER QUESTION:
 
     try:
 
-        response = client.chat.completions.create(
+        response = client.models.generate_content(
 
             model=MODEL,
 
-            messages=[
-
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-
-            ]
-
+            contents=(
+                system_prompt
+                + "\n\n"
+                + user_prompt
+            )
         )
 
-        return response.choices[
-            0
-        ].message.content.strip()
-
-    except Exception as error:
-
-        print(
-            "\n========== GITORA CHAT ERROR =========="
+        return safe_value(
+            response.text,
+            "Gemini returned no answer."
         )
 
-        print(error)
+    except Exception as e:
 
         print(
-            "=======================================\n"
+            "\n========== GITORA GEMINI CHAT ERROR =========="
+        )
+
+        print(
+            f"Error type: {type(e).__name__}"
+        )
+
+        print(
+            f"Error: {repr(e)}"
+        )
+
+        print(
+            "===============================================\n"
         )
 
         return (
-            "Gitora AI could not connect to OpenAI. "
-            "Check the OPENAI_API_KEY and try again."
+            "Gemini could not answer this question. "
+            "Check the terminal for the exact error."
         )
 
 
-# =====================================================
-# THREE WAYS TO REBUILD PROJECT
-# =====================================================
+# ============================================================
+# REBUILD STRATEGIES
+# ============================================================
 
 def generate_rebuild_strategies(
     repository,
     files
 ):
 
-    if not files:
-        return []
-
     if client is None:
+
         return []
 
     context = build_repository_context(
@@ -1638,222 +811,37 @@ def generate_rebuild_strategies(
     )
 
     system_prompt = """
-You are Gitora AI.
+You are a senior software architect.
 
-Analyze ONLY the supplied repository source.
+Based only on the supplied repository, provide exactly
+3 practical ways to rebuild or improve the project.
 
-Generate exactly THREE realistic ways to rebuild
-the same project.
-
-The three approaches MUST be:
-
-1. Beginner / Simple
-2. Modern / Production
-3. Scalable / Advanced
-
-These are alternative architectures.
-
-Do not claim that these alternatives are the
-existing implementation.
-
-Return ONLY valid JSON.
-
-Structure:
+Return ONLY valid JSON:
 
 {
-  "rebuild_strategies": [
-    {
-      "name": "",
-      "approach": "",
-      "description": "",
-      "technologies": [],
-      "architecture": "",
-      "steps": [],
-      "advantages": [],
-      "limitations": [],
-      "estimated_time": ""
-    }
-  ]
+    "rebuild_strategies": [
+        {
+            "title": "",
+            "description": "",
+            "technology": [],
+            "advantages": [],
+            "estimated_time": ""
+        }
+    ]
 }
-
-There MUST be exactly three objects.
 """
 
-    user_prompt = f"""
-Repository:
-{repository.get('full_name', '')}
-
-SOURCE CODE:
-
-{context}
-
-Generate exactly three practical rebuild strategies.
-"""
-
-    retry_prompt = f"""
-Return ONLY valid JSON.
-
-No Markdown.
-No Python.
-No explanation.
-
-{{
-  "rebuild_strategies": [
-    {{
-      "name": "",
-      "approach": "",
-      "description": "",
-      "technologies": [],
-      "architecture": "",
-      "steps": [],
-      "advantages": [],
-      "limitations": [],
-      "estimated_time": ""
-    }},
-    {{
-      "name": "",
-      "approach": "",
-      "description": "",
-      "technologies": [],
-      "architecture": "",
-      "steps": [],
-      "advantages": [],
-      "limitations": [],
-      "estimated_time": ""
-    }},
-    {{
-      "name": "",
-      "approach": "",
-      "description": "",
-      "technologies": [],
-      "architecture": "",
-      "steps": [],
-      "advantages": [],
-      "limitations": [],
-      "estimated_time": ""
-    }}
-  ]
-}}
-
-Analyze ONLY:
-
-{context}
-"""
-
-    result = call_openai_json(
-
-        system_prompt=system_prompt,
-
-        user_prompt=user_prompt,
-
-        retry_prompt=retry_prompt
+    result = call_gemini_json(
+        system_prompt,
+        context
     )
 
-    if not isinstance(
-        result,
-        dict
-    ):
+    if not isinstance(result, dict):
 
         return []
 
-    strategies = result.get(
-        "rebuild_strategies",
-        []
+    strategies = normalize_list(
+        result.get("rebuild_strategies")
     )
 
-    if not isinstance(
-        strategies,
-        list
-    ):
-
-        return []
-
-    normalized = []
-
-    for item in strategies:
-
-        if not isinstance(
-            item,
-            dict
-        ):
-            continue
-
-        normalized.append({
-
-            "name":
-                safe_value(
-                    item.get(
-                        "name",
-                        "Rebuild Approach"
-                    )
-                ),
-
-            "approach":
-                safe_value(
-                    item.get(
-                        "approach",
-                        NIL
-                    )
-                ),
-
-            "description":
-                safe_value(
-                    item.get(
-                        "description",
-                        item.get(
-                            "approach",
-                            NIL
-                        )
-                    )
-                ),
-
-            "technologies":
-                normalize_list(
-                    item.get(
-                        "technologies",
-                        []
-                    )
-                ),
-
-            "architecture":
-                safe_value(
-                    item.get(
-                        "architecture",
-                        NIL
-                    )
-                ),
-
-            "steps":
-                normalize_list(
-                    item.get(
-                        "steps",
-                        []
-                    )
-                ),
-
-            "advantages":
-                normalize_list(
-                    item.get(
-                        "advantages",
-                        []
-                    )
-                ),
-
-            "limitations":
-                normalize_list(
-                    item.get(
-                        "limitations",
-                        []
-                    )
-                ),
-
-            "estimated_time":
-                safe_value(
-                    item.get(
-                        "estimated_time",
-                        NIL
-                    )
-                )
-        })
-
-    return normalized[:3]
+    return strategies[:3]
