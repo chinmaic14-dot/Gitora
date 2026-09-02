@@ -39,6 +39,28 @@ main = Blueprint("main", __name__)
 
 
 # =====================================================
+# AI ANALYSIS CACHE
+# =====================================================
+#
+# This stores the latest successful AI analysis for a
+# repository during the lifetime of the Flask process.
+#
+# IMPORTANT:
+# The PDF route uses this first.
+# Therefore, after clicking:
+#
+# Analyze With Gitora AI
+#
+# the PDF does NOT unnecessarily call Gemini again.
+#
+# This is especially important with Gemini free-tier
+# request limits.
+# =====================================================
+
+AI_ANALYSIS_CACHE = {}
+
+
+# =====================================================
 # DATABASE SESSION CLEANUP
 # =====================================================
 
@@ -46,9 +68,11 @@ main = Blueprint("main", __name__)
 def cleanup_database_session(exception=None):
 
     try:
+
         db.session.remove()
 
     except Exception as error:
+
         print(
             "DATABASE SESSION CLEANUP ERROR:",
             repr(error)
@@ -86,7 +110,9 @@ def get_saved_file_paths(repository_name):
 @main.route("/")
 def home():
 
-    return render_template("index.html")
+    return render_template(
+        "index.html"
+    )
 
 
 # =====================================================
@@ -218,14 +244,18 @@ def analyze():
 
         print("\n========================================")
         print("❌ ANALYZE REPOSITORY FAILED")
+        print("========================================")
+
         print(
             "ERROR TYPE:",
             type(error).__name__
         )
+
         print(
             "ERROR:",
             repr(error)
         )
+
         print("========================================")
 
         return render_template(
@@ -283,6 +313,19 @@ def save_files():
             repository,
             selected_files
         )
+
+        # -------------------------------------------------
+        # If selected files changed, remove old AI cache.
+        # -------------------------------------------------
+
+        if repository in AI_ANALYSIS_CACHE:
+
+            del AI_ANALYSIS_CACHE[repository]
+
+            print(
+                "OLD AI ANALYSIS CACHE CLEARED:",
+                repository
+            )
 
     except Exception as error:
 
@@ -443,6 +486,20 @@ def ai_analyze():
                     "Unable to load the selected files."
             })
 
+        print("\n========================================")
+        print("🔥 GITORA FULL AI ANALYSIS")
+        print("========================================")
+
+        print(
+            "Repository:",
+            repository_name
+        )
+
+        print(
+            "Files sent to Gemini:",
+            len(source_files)
+        )
+
         print(
             "Starting Gemini analysis..."
         )
@@ -460,6 +517,22 @@ def ai_analyze():
                     "Gitora AI returned an invalid response."
             })
 
+        # -------------------------------------------------
+        # Store successful analysis.
+        #
+        # PDF generation will reuse this result instead
+        # of calling Gemini again.
+        # -------------------------------------------------
+
+        AI_ANALYSIS_CACHE[
+            repository_name
+        ] = result
+
+        print(
+            "AI ANALYSIS SAVED TO CACHE:",
+            repository_name
+        )
+
         rebuild_options = result.get(
             "rebuild_options",
             []
@@ -469,6 +542,7 @@ def ai_analyze():
             rebuild_options,
             list
         ):
+
             rebuild_options = []
 
         return jsonify({
@@ -479,11 +553,21 @@ def ai_analyze():
 
     except Exception as error:
 
+        print("\n========================================")
+        print("❌ AI ANALYSIS ERROR")
+        print("========================================")
+
         print(
-            "AI ANALYSIS ERROR:",
-            type(error).__name__,
+            "ERROR TYPE:",
+            type(error).__name__
+        )
+
+        print(
+            "ERROR:",
             repr(error)
         )
+
+        print("========================================")
 
         return jsonify({
             "success": False,
@@ -517,6 +601,44 @@ def rebuild_options():
                 "success": False,
                 "message":
                     "Repository information is missing."
+            })
+
+        # -------------------------------------------------
+        # Reuse cached analysis if available.
+        # -------------------------------------------------
+
+        cached_analysis = AI_ANALYSIS_CACHE.get(
+            repository_name
+        )
+
+        if isinstance(
+            cached_analysis,
+            dict
+        ):
+
+            print(
+                "Using cached AI analysis for rebuild options."
+            )
+
+            options = cached_analysis.get(
+                "rebuild_options",
+                []
+            )
+
+            if not isinstance(
+                options,
+                list
+            ):
+
+                options = []
+
+            options = options[:3]
+
+            return jsonify({
+                "success": True,
+                "repository": repository_name,
+                "options": options,
+                "count": len(options)
             })
 
         saved_files = get_saved_file_paths(
@@ -563,6 +685,14 @@ def rebuild_options():
                     "Unable to load the selected files."
             })
 
+        print(
+            "No cached analysis found."
+        )
+
+        print(
+            "Starting Gemini analysis for rebuild options..."
+        )
+
         analysis = analyze_repository(
             repository=repository,
             files=source_files
@@ -579,6 +709,10 @@ def rebuild_options():
                     "Gitora AI returned an invalid analysis."
             })
 
+        AI_ANALYSIS_CACHE[
+            repository_name
+        ] = analysis
+
         options = analysis.get(
             "rebuild_options",
             []
@@ -588,6 +722,7 @@ def rebuild_options():
             options,
             list
         ):
+
             options = []
 
         options = options[:3]
@@ -949,10 +1084,27 @@ def download_report():
                 400
             )
 
+        # =================================================
+        # GET REPOSITORY
+        # =================================================
+
+        print(
+            "Loading repository information..."
+        )
+
         repository = get_repository_info(
             "https://github.com/"
             + repository_name
         )
+
+        print(
+            "Repository loaded:",
+            repository.get("full_name")
+        )
+
+        # =================================================
+        # LOAD SOURCE FILES
+        # =================================================
 
         source_files = []
 
@@ -980,6 +1132,11 @@ def download_report():
                     )
                 })
 
+        print(
+            "PDF source files loaded:",
+            len(source_files)
+        )
+
         if not source_files:
 
             return (
@@ -987,14 +1144,67 @@ def download_report():
                 400
             )
 
-        print(
-            "Starting Gemini analysis for PDF..."
+        # =================================================
+        # GET AI ANALYSIS
+        # =================================================
+        #
+        # FIRST:
+        # Use the analysis already generated by the
+        # Analyze With Gitora AI button.
+        #
+        # This avoids another Gemini request.
+        #
+        # SECOND:
+        # If no cached analysis exists, try Gemini once.
+        #
+        # THIRD:
+        # If Gemini is unavailable, generate the PDF with
+        # a safe fallback analysis instead of returning 500.
+        # =================================================
+
+        ai_analysis = AI_ANALYSIS_CACHE.get(
+            repository_name
         )
 
-        ai_analysis = analyze_repository(
-            repository=repository,
-            files=source_files
-        )
+        if isinstance(
+            ai_analysis,
+            dict
+        ):
+
+            print(
+                "✅ USING CACHED AI ANALYSIS FOR PDF"
+            )
+
+        else:
+
+            print(
+                "⚠️ NO CACHED AI ANALYSIS FOUND"
+            )
+
+            print(
+                "Starting Gemini analysis for PDF..."
+            )
+
+            try:
+
+                ai_analysis = analyze_repository(
+                    repository=repository,
+                    files=source_files
+                )
+
+            except Exception as ai_error:
+
+                print(
+                    "PDF GEMINI ERROR:",
+                    type(ai_error).__name__,
+                    repr(ai_error)
+                )
+
+                ai_analysis = None
+
+        # =================================================
+        # VALIDATE AI ANALYSIS
+        # =================================================
 
         if not isinstance(
             ai_analysis,
@@ -1002,12 +1212,18 @@ def download_report():
         ):
 
             print(
-                "WARNING: Invalid AI analysis received."
+                "⚠️ AI analysis unavailable."
+            )
+
+            print(
+                "Using safe PDF fallback data."
             )
 
             ai_analysis = {
                 "project_summary":
-                    "AI analysis was unavailable.",
+                    "AI analysis was unavailable. "
+                    "The report contains the selected "
+                    "source code and available repository information.",
 
                 "technology_stack": [],
 
@@ -1039,9 +1255,24 @@ def download_report():
                     "AI analysis was unavailable."
             }
 
-        print(
-            "AI analysis completed."
-        )
+        else:
+
+            print(
+                "AI analysis available for PDF."
+            )
+
+            # -------------------------------------------------
+            # Save it so another PDF request does not call
+            # Gemini again.
+            # -------------------------------------------------
+
+            AI_ANALYSIS_CACHE[
+                repository_name
+            ] = ai_analysis
+
+        # =================================================
+        # GENERATE PDF
+        # =================================================
 
         print(
             "Generating PDF..."
@@ -1053,18 +1284,35 @@ def download_report():
             ai_analysis=ai_analysis
         )
 
+        print(
+            "PDF service returned:",
+            type(pdf_buffer).__name__
+        )
+
         if pdf_buffer is None:
 
             raise RuntimeError(
                 "PDF service returned no data."
             )
 
+        # =================================================
+        # RESET BUFFER
+        # =================================================
+
         try:
 
             pdf_buffer.seek(0)
 
-        except Exception:
-            pass
+        except Exception as seek_error:
+
+            print(
+                "PDF BUFFER SEEK ERROR:",
+                repr(seek_error)
+            )
+
+        # =================================================
+        # FILE NAME
+        # =================================================
 
         filename = (
             repository.get(
@@ -1075,8 +1323,25 @@ def download_report():
         )
 
         print(
-            "PDF generated successfully."
+            "PDF filename:",
+            filename
         )
+
+        print(
+            "========================================"
+        )
+
+        print(
+            "✅ PDF GENERATED SUCCESSFULLY"
+        )
+
+        print(
+            "========================================"
+        )
+
+        # =================================================
+        # SEND PDF
+        # =================================================
 
         return send_file(
             pdf_buffer,
@@ -1111,13 +1376,14 @@ def download_report():
 
         return (
             "Unable to generate the PDF report. "
-            "Check the Render logs for the exact error.",
+            "Please try again.",
             500
         )
 
     finally:
 
         try:
+
             db.session.remove()
 
         except Exception as error:

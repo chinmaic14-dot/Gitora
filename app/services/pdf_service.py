@@ -1,12 +1,12 @@
+# app/services/pdf_service.py
+
 from io import BytesIO
+from html import escape
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import (
-    getSampleStyleSheet,
-    ParagraphStyle
-)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -28,51 +28,46 @@ def safe_text(value, default="Not available."):
     if value is None:
         return default
 
-    if isinstance(value, str):
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
 
-        value = value.strip()
+    if isinstance(value, (dict, list, tuple, set)):
 
-        if not value:
-            return default
+        if isinstance(value, dict):
 
-        return value
+            parts = []
 
-    if isinstance(value, list):
+            for key, val in value.items():
 
-        if not value:
-            return default
+                parts.append(
+                    f"{key}: {safe_text(val, '')}"
+                )
 
-        return ", ".join(
-            safe_text(item, "")
-            for item in value
-        )
-
-    if isinstance(value, tuple):
-
-        if not value:
-            return default
-
-        return ", ".join(
-            safe_text(item, "")
-            for item in value
-        )
-
-    if isinstance(value, dict):
-
-        if not value:
-            return default
+            return "\n".join(parts)
 
         parts = []
 
-        for key, val in value.items():
+        for item in value:
 
-            parts.append(
-                f"{key}: {safe_text(val, '')}"
+            text = safe_text(
+                item,
+                ""
             )
 
-        return " | ".join(parts)
+            if text:
+                parts.append(text)
 
-    return str(value)
+        return "\n".join(parts)
+
+    try:
+
+        text = str(value).strip()
+
+        return text if text else default
+
+    except Exception:
+
+        return default
 
 
 def safe_list(value):
@@ -86,27 +81,41 @@ def safe_list(value):
     if isinstance(value, tuple):
         return list(value)
 
+    if isinstance(value, set):
+        return list(value)
+
+    if isinstance(value, dict):
+
+        return [
+            f"{key}: {safe_text(val, '')}"
+            for key, val in value.items()
+        ]
+
     if isinstance(value, str):
 
-        if not value.strip():
+        text = value.strip()
+
+        if not text:
             return []
 
-        return [value]
+        lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip()
+        ]
+
+        return lines if lines else [text]
 
     return [value]
 
 
-def escape_html(text):
+def escape_html(value):
 
-    text = safe_text(text, "")
-
-    return (
-        text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#39;")
+    return escape(
+        safe_text(value)
+    ).replace(
+        "\n",
+        "<br/>"
     )
 
 
@@ -114,18 +123,21 @@ def escape_html(text):
 # PAGE HEADER / FOOTER
 # =====================================================
 
-def add_page_number(canvas, doc):
+def draw_page(canvas, document):
 
     canvas.saveState()
 
     width, height = A4
 
-    # BORDER
+    # -------------------------------------------------
+    # Dark page border
+    # -------------------------------------------------
+
     canvas.setStrokeColor(
-        colors.HexColor("#0F172A")
+        colors.HexColor("#202040")
     )
 
-    canvas.setLineWidth(1.5)
+    canvas.setLineWidth(1)
 
     canvas.rect(
         8 * mm,
@@ -134,21 +146,9 @@ def add_page_number(canvas, doc):
         height - 16 * mm
     )
 
-    # HEADER
-    canvas.setFont(
-        "Helvetica-Bold",
-        8
-    )
-
-    canvas.setFillColor(
-        colors.HexColor("#6366F1")
-    )
-
-    canvas.drawString(
-        18 * mm,
-        height - 12 * mm,
-        "GITORA AI"
-    )
+    # -------------------------------------------------
+    # Footer
+    # -------------------------------------------------
 
     canvas.setFont(
         "Helvetica",
@@ -156,64 +156,144 @@ def add_page_number(canvas, doc):
     )
 
     canvas.setFillColor(
-        colors.HexColor("#64748B")
+        colors.HexColor("#666666")
     )
 
-    canvas.drawRightString(
-        width - 18 * mm,
-        height - 12 * mm,
-        "GitHub Repository Analysis"
-    )
-
-    # FOOTER LINE
-    canvas.setStrokeColor(
-        colors.HexColor("#CBD5E1")
-    )
-
-    canvas.setLineWidth(0.5)
-
-    canvas.line(
-        18 * mm,
-        13 * mm,
-        width - 18 * mm,
-        13 * mm
-    )
-
-    # FOOTER TEXT
-    canvas.setFont(
-        "Helvetica",
-        8
-    )
-
-    canvas.setFillColor(
-        colors.HexColor("#64748B")
-    )
-
-    canvas.drawString(
-        18 * mm,
-        8 * mm,
-        "Generated by Gitora AI"
-    )
-
-    canvas.drawRightString(
-        width - 18 * mm,
-        8 * mm,
-        f"Page {doc.page}"
+    canvas.drawCentredString(
+        width / 2,
+        12 * mm,
+        f"Gitora AI • Page {document.page}"
     )
 
     canvas.restoreState()
 
 
 # =====================================================
+# STYLES
+# =====================================================
+
+def create_styles():
+
+    styles = getSampleStyleSheet()
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraTitle",
+            parent=styles["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=27,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#1A1A2E"),
+            spaceAfter=12
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraSubtitle",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=14,
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#666666"),
+            spaceAfter=18
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraSection",
+            parent=styles["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=15,
+            leading=19,
+            textColor=colors.HexColor("#1A1A2E"),
+            spaceBefore=12,
+            spaceAfter=9
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraSubsection",
+            parent=styles["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor("#303050"),
+            spaceBefore=7,
+            spaceAfter=5
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraBody",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=14,
+            textColor=colors.HexColor("#303030"),
+            spaceAfter=6
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraBullet",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=9,
+            leading=13,
+            leftIndent=12,
+            firstLineIndent=-7,
+            textColor=colors.HexColor("#303030"),
+            spaceAfter=4
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraCode",
+            parent=styles["Code"],
+            fontName="Courier",
+            fontSize=6.5,
+            leading=8,
+            textColor=colors.HexColor("#202020"),
+            backColor=colors.HexColor("#F5F5F5"),
+            borderPadding=5
+        )
+    )
+
+    styles.add(
+        ParagraphStyle(
+            name="GitoraSmall",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=11,
+            textColor=colors.HexColor("#555555")
+        )
+    )
+
+    return styles
+
+
+# =====================================================
 # SECTION TITLE
 # =====================================================
 
-def section_title(text, styles):
+def section_title(title, styles):
 
-    return Paragraph(
-        escape_html(text),
-        styles["SectionTitle"]
-    )
+    return [
+        Spacer(1, 5 * mm),
+        Paragraph(
+            escape_html(title),
+            styles["GitoraSection"]
+        )
+    ]
 
 
 # =====================================================
@@ -222,50 +302,36 @@ def section_title(text, styles):
 
 def bullet_list(items, styles):
 
-    elements = []
+    story = []
 
     items = safe_list(items)
 
     if not items:
 
-        elements.append(
+        story.append(
             Paragraph(
-                "None identified.",
-                styles["BodyTextCustom"]
+                "Not available.",
+                styles["GitoraBody"]
             )
         )
 
-        return elements
+        return story
 
     for item in items:
 
-        if isinstance(item, dict):
+        text = safe_text(
+            item,
+            "Not available."
+        )
 
-            parts = []
-
-            for key, value in item.items():
-
-                parts.append(
-                    f"{key}: {safe_text(value, '')}"
-                )
-
-            text = " | ".join(parts)
-
-        else:
-
-            text = safe_text(item, "")
-
-        if not text:
-            continue
-
-        elements.append(
+        story.append(
             Paragraph(
                 "• " + escape_html(text),
-                styles["BulletCustom"]
+                styles["GitoraBullet"]
             )
         )
 
-    return elements
+    return story
 
 
 # =====================================================
@@ -283,87 +349,78 @@ def create_analysis_box(
         "Not available."
     )
 
-    data = [
+    table_data = [
         [
             Paragraph(
                 escape_html(title),
-                styles["BoxTitle"]
+                styles["GitoraSubsection"]
             )
         ],
         [
             Paragraph(
                 escape_html(content),
-                styles["BodyTextCustom"]
+                styles["GitoraBody"]
             )
         ]
     ]
 
     table = Table(
-        data,
+        table_data,
         colWidths=[170 * mm]
     )
 
     table.setStyle(
         TableStyle([
-
             (
                 "BACKGROUND",
                 (0, 0),
                 (-1, 0),
-                colors.HexColor("#EEF2FF")
+                colors.HexColor("#EEEEF8")
             ),
-
             (
                 "BACKGROUND",
                 (0, 1),
-                (-1, -1),
-                colors.HexColor("#F8FAFC")
+                (-1, 1),
+                colors.HexColor("#FAFAFC")
             ),
-
             (
                 "BOX",
                 (0, 0),
                 (-1, -1),
-                0.8,
-                colors.HexColor("#CBD5E1")
+                0.7,
+                colors.HexColor("#CCCCDD")
             ),
-
             (
                 "INNERGRID",
                 (0, 0),
                 (-1, -1),
                 0.3,
-                colors.HexColor("#E2E8F0")
+                colors.HexColor("#DDDDDD")
             ),
-
             (
                 "LEFTPADDING",
                 (0, 0),
                 (-1, -1),
-                10
+                8
             ),
-
             (
                 "RIGHTPADDING",
                 (0, 0),
                 (-1, -1),
-                10
+                8
             ),
-
             (
                 "TOPPADDING",
                 (0, 0),
                 (-1, -1),
-                8
+                6
             ),
-
             (
                 "BOTTOMPADDING",
                 (0, 0),
                 (-1, -1),
-                8
+                6
             )
-
         ])
     )
 
@@ -371,7 +428,7 @@ def create_analysis_box(
 
 
 # =====================================================
-# FILE ANALYSIS
+# FILE-BY-FILE ANALYSIS
 # =====================================================
 
 def build_file_analysis(
@@ -379,13 +436,25 @@ def build_file_analysis(
     styles
 ):
 
-    elements = []
+    story = []
 
     if not isinstance(
         file_analysis,
         list
     ):
-        return elements
+
+        file_analysis = []
+
+    if not file_analysis:
+
+        story.append(
+            Paragraph(
+                "AI file-by-file analysis is not available.",
+                styles["GitoraBody"]
+            )
+        )
+
+        return story
 
     for item in file_analysis:
 
@@ -393,6 +462,7 @@ def build_file_analysis(
             item,
             dict
         ):
+
             continue
 
         file_name = (
@@ -406,11 +476,13 @@ def build_file_analysis(
             item.get("what_it_does")
             or item.get("description")
             or item.get("purpose")
+            or item.get("function")
         )
 
-        why_exists = (
+        why_it_exists = (
             item.get("why_it_exists")
             or item.get("why")
+            or item.get("reason")
         )
 
         website_role = (
@@ -422,12 +494,15 @@ def build_file_analysis(
 
         dependencies = (
             item.get("dependencies")
+            or item.get("required_files")
+            or item.get("imports")
             or []
         )
 
         requests = (
             item.get("important_requests")
             or item.get("api_requests")
+            or item.get("requests")
             or []
         )
 
@@ -435,98 +510,97 @@ def build_file_analysis(
             item.get("what_breaks")
             or item.get("what_breaks_without_it")
             or item.get("impact")
+            or item.get("consequence")
         )
 
-        elements.append(
+        story.append(
             Paragraph(
                 escape_html(file_name),
-                styles["FileTitle"]
+                styles["GitoraSubsection"]
             )
         )
 
-        elements.append(
+        story.append(
             create_analysis_box(
-                "What It Does",
+                "What it does",
                 what_it_does,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 5)
+        story.append(
+            Spacer(1, 3 * mm)
         )
 
-        elements.append(
+        story.append(
             create_analysis_box(
-                "Why It Exists",
-                why_exists,
+                "Why it exists",
+                why_it_exists,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 5)
+        story.append(
+            Spacer(1, 3 * mm)
         )
 
-        elements.append(
+        story.append(
             create_analysis_box(
-                "How It Helps The Website",
+                "How it helps the website / project",
                 website_role,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 5)
+        story.append(
+            Spacer(1, 3 * mm)
         )
 
-        elements.append(
-            create_analysis_box(
+        story.append(
+            Paragraph(
                 "Dependencies",
-                safe_text(
-                    dependencies,
-                    "None identified."
-                ),
+                styles["GitoraSubsection"]
+            )
+        )
+
+        story.extend(
+            bullet_list(
+                dependencies,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 5)
-        )
-
-        elements.append(
-            create_analysis_box(
+        story.append(
+            Paragraph(
                 "Important API Requests",
-                safe_text(
-                    requests,
-                    "None identified."
-                ),
+                styles["GitoraSubsection"]
+            )
+        )
+
+        story.extend(
+            bullet_list(
+                requests,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 5)
-        )
-
-        elements.append(
+        story.append(
             create_analysis_box(
-                "What Breaks Without This File?",
+                "What breaks without it",
                 what_breaks,
                 styles
             )
         )
 
-        elements.append(
-            Spacer(1, 12)
+        story.append(
+            Spacer(1, 5 * mm)
         )
 
-    return elements
+    return story
 
 
 # =====================================================
-# API REQUEST TABLE
+# API REQUESTS
 # =====================================================
 
 def build_api_requests(
@@ -534,186 +608,84 @@ def build_api_requests(
     styles
 ):
 
-    elements = []
+    story = []
 
-    requests = safe_list(requests)
+    requests = safe_list(
+        requests
+    )
 
     if not requests:
 
-        elements.append(
+        story.append(
             Paragraph(
-                "No important external API requests were identified.",
-                styles["BodyTextCustom"]
+                "No important API requests were identified.",
+                styles["GitoraBody"]
             )
         )
 
-        return elements
+        return story
 
-    rows = [[
+    for request_item in requests:
 
-        Paragraph(
-            "API / Service",
-            styles["TableHeader"]
-        ),
+        if isinstance(
+            request_item,
+            dict
+        ):
 
-        Paragraph(
-            "File",
-            styles["TableHeader"]
-        ),
-
-        Paragraph(
-            "Purpose",
-            styles["TableHeader"]
-        ),
-
-        Paragraph(
-            "Usage",
-            styles["TableHeader"]
-        )
-
-    ]]
-
-    for item in requests:
-
-        if isinstance(item, dict):
-
-            api = (
-                item.get("api")
-                or item.get("service")
-                or "External API"
+            method = (
+                request_item.get("method")
+                or request_item.get("http_method")
+                or ""
             )
 
-            file_name = (
-                item.get("file")
-                or "Not specified"
+            endpoint = (
+                request_item.get("endpoint")
+                or request_item.get("url")
+                or request_item.get("path")
+                or ""
             )
 
-            purpose = (
-                item.get("purpose")
-                or item.get("why")
-                or "Not specified"
+            description = (
+                request_item.get("description")
+                or request_item.get("purpose")
+                or ""
             )
 
-            usage = (
-                item.get("usage")
-                or "Not specified"
+            text_parts = []
+
+            if method:
+                text_parts.append(
+                    f"{method}"
+                )
+
+            if endpoint:
+                text_parts.append(
+                    endpoint
+                )
+
+            if description:
+                text_parts.append(
+                    description
+                )
+
+            text = " — ".join(
+                text_parts
             )
 
         else:
 
-            api = "External API"
-            file_name = "Not specified"
-            purpose = safe_text(item)
-            usage = "Not specified"
-
-        rows.append([
-
-            Paragraph(
-                escape_html(api),
-                styles["TableCell"]
-            ),
-
-            Paragraph(
-                escape_html(file_name),
-                styles["TableCell"]
-            ),
-
-            Paragraph(
-                escape_html(purpose),
-                styles["TableCell"]
-            ),
-
-            Paragraph(
-                escape_html(usage),
-                styles["TableCell"]
+            text = safe_text(
+                request_item
             )
 
-        ])
-
-    table = Table(
-        rows,
-        colWidths=[
-            38 * mm,
-            32 * mm,
-            50 * mm,
-            50 * mm
-        ],
-        repeatRows=1
-    )
-
-    table.setStyle(
-        TableStyle([
-
-            (
-                "BACKGROUND",
-                (0, 0),
-                (-1, 0),
-                colors.HexColor("#6366F1")
-            ),
-
-            (
-                "TEXTCOLOR",
-                (0, 0),
-                (-1, 0),
-                colors.white
-            ),
-
-            (
-                "GRID",
-                (0, 0),
-                (-1, -1),
-                0.5,
-                colors.HexColor("#CBD5E1")
-            ),
-
-            (
-                "VALIGN",
-                (0, 0),
-                (-1, -1),
-                "TOP"
-            ),
-
-            (
-                "BACKGROUND",
-                (0, 1),
-                (-1, -1),
-                colors.HexColor("#F8FAFC")
-            ),
-
-            (
-                "LEFTPADDING",
-                (0, 0),
-                (-1, -1),
-                6
-            ),
-
-            (
-                "RIGHTPADDING",
-                (0, 0),
-                (-1, -1),
-                6
-            ),
-
-            (
-                "TOPPADDING",
-                (0, 0),
-                (-1, -1),
-                7
-            ),
-
-            (
-                "BOTTOMPADDING",
-                (0, 0),
-                (-1, -1),
-                7
+        story.append(
+            Paragraph(
+                "• " + escape_html(text),
+                styles["GitoraBullet"]
             )
+        )
 
-        ])
-    )
-
-    elements.append(table)
-
-    return elements
+    return story
 
 
 # =====================================================
@@ -725,66 +697,104 @@ def build_rebuild_options(
     styles
 ):
 
-    elements = []
+    story = []
 
-    options = safe_list(options)
+    options = safe_list(
+        options
+    )
 
     if not options:
 
-        elements.append(
+        story.append(
             Paragraph(
-                "No rebuild approaches were generated.",
-                styles["BodyTextCustom"]
+                "No rebuild strategies were generated.",
+                styles["GitoraBody"]
             )
         )
 
-        return elements
+        return story
 
     for index, option in enumerate(
         options[:3],
         start=1
     ):
 
-        if isinstance(option, dict):
+        if isinstance(
+            option,
+            dict
+        ):
 
             title = (
                 option.get("title")
                 or option.get("name")
-                or option.get("approach")
                 or f"Approach {index}"
             )
 
             description = (
                 option.get("description")
                 or option.get("details")
-                or option.get("method")
-                or option.get("technology")
+                or option.get("approach")
                 or ""
             )
 
-            content = (
-                safe_text(title, "")
-                + "\n\n"
-                + safe_text(description, "")
+            technology = (
+                option.get("technology")
+                or option.get("stack")
+                or ""
+            )
+
+            time = (
+                option.get("estimated_time")
+                or option.get("time")
+                or ""
+            )
+
+            content_parts = []
+
+            if description:
+                content_parts.append(
+                    description
+                )
+
+            if technology:
+                content_parts.append(
+                    f"Technology: {technology}"
+                )
+
+            if time:
+                content_parts.append(
+                    f"Estimated time: {time}"
+                )
+
+            content = "\n".join(
+                content_parts
             )
 
         else:
 
-            content = safe_text(option)
+            title = f"Approach {index}"
 
-        elements.append(
-            create_analysis_box(
-                f"Approach {index}",
-                content,
-                styles
+            content = safe_text(
+                option
+            )
+
+        story.append(
+            Paragraph(
+                escape_html(
+                    f"{index}. {title}"
+                ),
+                styles["GitoraSubsection"]
             )
         )
 
-        elements.append(
-            Spacer(1, 8)
+        story.append(
+            Paragraph(
+                escape_html(content),
+                styles["GitoraBody"]
+            )
         )
 
-    return elements
+    return story
 
 
 # =====================================================
@@ -796,280 +806,93 @@ def build_source_code(
     styles
 ):
 
-    elements = []
+    story = []
+
+    if not isinstance(
+        source_files,
+        list
+    ):
+
+        source_files = []
 
     if not source_files:
 
-        elements.append(
+        story.append(
             Paragraph(
                 "No source files were selected.",
-                styles["BodyTextCustom"]
+                styles["GitoraBody"]
             )
         )
 
-        return elements
+        return story
 
-    valid_files = [
-        file
-        for file in source_files
-        if isinstance(file, dict)
-    ]
+    for file_item in source_files:
 
-    for index, file in enumerate(
-        valid_files,
-        start=1
-    ):
+        if not isinstance(
+            file_item,
+            dict
+        ):
 
-        path = safe_text(
-            file.get("path"),
-            f"Selected File {index}"
+            continue
+
+        file_path = (
+            file_item.get("path")
+            or file_item.get("file")
+            or "Unknown file"
         )
 
-        content = file.get(
-            "content",
+        content = (
+            file_item.get("content")
+            or ""
+        )
+
+        content = safe_text(
+            content,
             ""
         )
 
-        if content is None:
-            content = ""
+        if len(content) > 120000:
 
-        content = str(content)
+            content = (
+                content[:120000]
+                + "\n\n"
+                + "[Source code truncated for PDF size safety.]"
+            )
 
-        categories = file.get(
-            "categories",
-            []
-        )
-
-        category_text = safe_text(
-            categories,
-            "Uncategorized"
-        )
-
-        elements.append(
+        story.append(
             Paragraph(
-                f"{index}. {escape_html(path)}",
-                styles["CodeFileTitle"]
+                escape_html(file_path),
+                styles["GitoraSubsection"]
             )
         )
 
-        info_data = [[
+        if not content:
 
-            Paragraph(
-                "<b>File</b>",
-                styles["BodyTextCustom"]
-            ),
-
-            Paragraph(
-                escape_html(path),
-                styles["BodyTextCustom"]
-            ),
-
-            Paragraph(
-                "<b>Category</b>",
-                styles["BodyTextCustom"]
-            ),
-
-            Paragraph(
-                escape_html(category_text),
-                styles["BodyTextCustom"]
-            )
-
-        ]]
-
-        info_table = Table(
-            info_data,
-            colWidths=[
-                18 * mm,
-                62 * mm,
-                25 * mm,
-                65 * mm
-            ]
-        )
-
-        info_table.setStyle(
-            TableStyle([
-
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (0, 0),
-                    colors.HexColor("#E0E7FF")
-                ),
-
-                (
-                    "BACKGROUND",
-                    (2, 0),
-                    (2, 0),
-                    colors.HexColor("#E0E7FF")
-                ),
-
-                (
-                    "BACKGROUND",
-                    (1, 0),
-                    (1, 0),
-                    colors.HexColor("#F8FAFC")
-                ),
-
-                (
-                    "BACKGROUND",
-                    (3, 0),
-                    (3, 0),
-                    colors.HexColor("#F8FAFC")
-                ),
-
-                (
-                    "GRID",
-                    (0, 0),
-                    (-1, -1),
-                    0.5,
-                    colors.HexColor("#CBD5E1")
-                ),
-
-                (
-                    "VALIGN",
-                    (0, 0),
-                    (-1, -1),
-                    "MIDDLE"
-                ),
-
-                (
-                    "LEFTPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    6
-                ),
-
-                (
-                    "RIGHTPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    6
-                ),
-
-                (
-                    "TOPPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    5
-                ),
-
-                (
-                    "BOTTOMPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    5
+            story.append(
+                Paragraph(
+                    "No source code available.",
+                    styles["GitoraBody"]
                 )
-
-            ])
-        )
-
-        elements.append(info_table)
-
-        elements.append(
-            Spacer(1, 8)
-        )
-
-        elements.append(
-            Paragraph(
-                "Source Code",
-                styles["CodeHeading"]
             )
-        )
-
-        if content.strip():
-
-            # Limit only extreme source files so a single
-            # gigantic file cannot crash ReportLab.
-            if len(content) > 120000:
-                content = (
-                    content[:120000]
-                    + "\n\n"
-                    + "[Gitora truncated this extremely large "
-                      "source file in the PDF.]"
-                )
-
-            code = Preformatted(
-                content,
-                styles["CodeBlock"]
-            )
-
-            code_table = Table(
-                [[code]],
-                colWidths=[170 * mm]
-            )
-
-            code_table.setStyle(
-                TableStyle([
-
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, -1),
-                        colors.HexColor("#0F172A")
-                    ),
-
-                    (
-                        "BOX",
-                        (0, 0),
-                        (-1, -1),
-                        1,
-                        colors.HexColor("#1E293B")
-                    ),
-
-                    (
-                        "LEFTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        10
-                    ),
-
-                    (
-                        "RIGHTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        10
-                    ),
-
-                    (
-                        "TOPPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        10
-                    ),
-
-                    (
-                        "BOTTOMPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        10
-                    )
-
-                ])
-            )
-
-            elements.append(code_table)
 
         else:
 
-            elements.append(
-                create_analysis_box(
-                    "Source Code",
-                    "Source code was not available for this file.",
-                    styles
+            # Preformatted is much safer than putting source
+            # code inside Paragraph HTML.
+
+            story.append(
+                Preformatted(
+                    content,
+                    styles["GitoraCode"],
+                    maxLineLength=110
                 )
             )
 
-        elements.append(
-            Spacer(1, 15)
+        story.append(
+            Spacer(1, 5 * mm)
         )
 
-        if index < len(valid_files):
-
-            elements.append(
-                PageBreak()
-            )
-
-    return elements
+    return story
 
 
 # =====================================================
@@ -1082,226 +905,191 @@ def generate_repository_pdf(
     ai_analysis
 ):
 
-    print(
-        "PDF SERVICE: Starting PDF generation..."
-    )
-
-    if not isinstance(repository, dict):
-        repository = {}
-
-    if not isinstance(source_files, list):
-        source_files = []
-
-    if not isinstance(ai_analysis, dict):
-        ai_analysis = {}
-
-    buffer = BytesIO()
-
-    repository_name = safe_text(
-        repository.get("name"),
-        "GitHub Repository"
-    )
-
-    full_name = safe_text(
-        repository.get("full_name"),
-        repository_name
-    )
-
-    default_branch = safe_text(
-        repository.get("default_branch"),
-        "Unknown"
-    )
+    print("\n========================================")
+    print("🔥 PDF SERVICE STARTED")
+    print("========================================")
 
     try:
 
+        # -------------------------------------------------
+        # Validate inputs
+        # -------------------------------------------------
+
+        if not isinstance(
+            repository,
+            dict
+        ):
+
+            repository = {}
+
+        if not isinstance(
+            source_files,
+            list
+        ):
+
+            source_files = []
+
+        if not isinstance(
+            ai_analysis,
+            dict
+        ):
+
+            ai_analysis = {}
+
+        print(
+            "Repository:",
+            repository.get(
+                "full_name",
+                repository.get(
+                    "repo",
+                    "Unknown"
+                )
+            )
+        )
+
+        print(
+            "Source files:",
+            len(source_files)
+        )
+
+        print(
+            "AI analysis type:",
+            type(ai_analysis).__name__
+        )
+
+        # -------------------------------------------------
+        # Create PDF buffer
+        # -------------------------------------------------
+
+        pdf_buffer = BytesIO()
+
         document = SimpleDocTemplate(
-
-            buffer,
-
+            pdf_buffer,
             pagesize=A4,
-
             rightMargin=18 * mm,
-
             leftMargin=18 * mm,
-
-            topMargin=20 * mm,
-
+            topMargin=18 * mm,
             bottomMargin=18 * mm,
-
-            title=(
-                repository_name
-                + " - Gitora AI Report"
-            ),
-
+            title="Gitora Repository Analysis Report",
             author="Gitora AI"
-
         )
 
-        base_styles = getSampleStyleSheet()
+        styles = create_styles()
 
-        styles = {}
+        story = []
 
-        # -------------------------------------------------
-        # NORMAL STYLES
-        # -------------------------------------------------
+        # =================================================
+        # REPOSITORY INFORMATION
+        # =================================================
 
-        styles["CoverTitle"] = ParagraphStyle(
-            "CoverTitle",
-            parent=base_styles["Title"],
-            fontName="Helvetica-Bold",
-            fontSize=26,
-            leading=32,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor("#312E81"),
-            spaceAfter=12
+        repo_name = (
+            repository.get("full_name")
+            or repository.get("name")
+            or repository.get("repo")
+            or "GitHub Repository"
         )
 
-        styles["CoverSubtitle"] = ParagraphStyle(
-            "CoverSubtitle",
-            parent=base_styles["Normal"],
-            fontName="Helvetica",
-            fontSize=12,
-            leading=18,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor("#64748B"),
-            spaceAfter=8
+        repo_url = (
+            repository.get("html_url")
+            or repository.get("url")
+            or ""
         )
 
-        styles["SectionTitle"] = ParagraphStyle(
-            "SectionTitle",
-            parent=base_styles["Heading1"],
-            fontName="Helvetica-Bold",
-            fontSize=18,
-            leading=23,
-            textColor=colors.HexColor("#312E81"),
-            spaceBefore=8,
-            spaceAfter=12
+        description = (
+            repository.get("description")
+            or "GitHub repository analyzed by Gitora AI."
         )
 
-        styles["BodyTextCustom"] = ParagraphStyle(
-            "BodyTextCustom",
-            parent=base_styles["BodyText"],
-            fontName="Helvetica",
-            fontSize=9.5,
-            leading=15,
-            textColor=colors.HexColor("#334155"),
-            spaceAfter=5
+        # =================================================
+        # COVER
+        # =================================================
+
+        story.append(
+            Spacer(1, 25 * mm)
         )
 
-        styles["BulletCustom"] = ParagraphStyle(
-            "BulletCustom",
-            parent=styles["BodyTextCustom"],
-            leftIndent=12,
-            firstLineIndent=-7,
-            spaceAfter=4
+        story.append(
+            Paragraph(
+                "GITORA AI",
+                styles["GitoraTitle"]
+            )
         )
 
-        styles["BoxTitle"] = ParagraphStyle(
-            "BoxTitle",
-            parent=base_styles["Heading3"],
-            fontName="Helvetica-Bold",
-            fontSize=10,
-            leading=13,
-            textColor=colors.HexColor("#4338CA"),
-            spaceAfter=2
+        story.append(
+            Paragraph(
+                "Repository Analysis Report",
+                styles["GitoraSubtitle"]
+            )
         )
 
-        styles["FileTitle"] = ParagraphStyle(
-            "FileTitle",
-            parent=base_styles["Heading2"],
-            fontName="Helvetica-Bold",
-            fontSize=14,
-            leading=18,
-            textColor=colors.HexColor("#0F172A"),
-            spaceBefore=10,
-            spaceAfter=10
+        story.append(
+            create_analysis_box(
+                "Repository",
+                repo_name,
+                styles
+            )
         )
 
-        styles["TableHeader"] = ParagraphStyle(
-            "TableHeader",
-            parent=base_styles["Normal"],
-            fontName="Helvetica-Bold",
-            fontSize=8,
-            leading=10,
-            textColor=colors.white
+        story.append(
+            Spacer(1, 5 * mm)
         )
 
-        styles["TableCell"] = ParagraphStyle(
-            "TableCell",
-            parent=base_styles["Normal"],
-            fontName="Helvetica",
-            fontSize=7.5,
-            leading=10,
-            textColor=colors.HexColor("#334155")
+        story.append(
+            create_analysis_box(
+                "Description",
+                description,
+                styles
+            )
         )
 
-        # -------------------------------------------------
-        # CODE STYLES
-        # -------------------------------------------------
+        if repo_url:
 
-        styles["CodeFileTitle"] = ParagraphStyle(
-            "CodeFileTitle",
-            parent=base_styles["Heading2"],
-            fontName="Helvetica-Bold",
-            fontSize=16,
-            leading=21,
-            textColor=colors.HexColor("#312E81"),
-            spaceBefore=5,
-            spaceAfter=8
+            story.append(
+                Spacer(1, 4 * mm)
+            )
+
+            story.append(
+                Paragraph(
+                    escape_html(repo_url),
+                    styles["GitoraSmall"]
+                )
+            )
+
+        story.append(
+            Spacer(1, 12 * mm)
         )
 
-        styles["CodeHeading"] = ParagraphStyle(
-            "CodeHeading",
-            parent=base_styles["Heading3"],
-            fontName="Helvetica-Bold",
-            fontSize=11,
-            leading=14,
-            textColor=colors.HexColor("#4338CA"),
-            spaceBefore=5,
-            spaceAfter=6
+        story.append(
+            Paragraph(
+                "Generated by Gitora",
+                styles["GitoraSubtitle"]
+            )
         )
 
-        styles["CodeBlock"] = ParagraphStyle(
-            "CodeBlock",
-            fontName="Courier",
-            fontSize=6.8,
-            leading=9,
-            textColor=colors.HexColor("#E2E8F0"),
-            leftIndent=0,
-            rightIndent=0,
-            spaceBefore=0,
-            spaceAfter=0
+        story.append(
+            PageBreak()
         )
 
-        # -------------------------------------------------
+        # =================================================
         # AI DATA
-        # -------------------------------------------------
+        # =================================================
 
         project_summary = (
             ai_analysis.get("project_summary")
             or ai_analysis.get("summary")
-            or "AI analysis was not available."
-        )
-
-        architecture = (
-            ai_analysis.get("architecture")
-            or "Not available."
-        )
-
-        database = (
-            ai_analysis.get("database")
-            or "Not available."
-        )
-
-        authentication = (
-            ai_analysis.get("authentication")
-            or "Not available."
+            or ai_analysis.get("projectSummary")
         )
 
         technology_stack = (
             ai_analysis.get("technology_stack")
-            or ai_analysis.get("technologies")
+            or ai_analysis.get("tech_stack")
+            or ai_analysis.get("technologyStack")
             or []
+        )
+
+        architecture = (
+            ai_analysis.get("architecture")
+            or ai_analysis.get("system_architecture")
         )
 
         dependencies = (
@@ -1309,206 +1097,82 @@ def generate_repository_pdf(
             or []
         )
 
+        database = (
+            ai_analysis.get("database")
+            or ai_analysis.get("database_structure")
+        )
+
+        authentication = (
+            ai_analysis.get("authentication")
+            or ai_analysis.get("auth")
+        )
+
         important_requests = (
             ai_analysis.get("important_requests")
             or ai_analysis.get("api_requests")
-            or []
-        )
-
-        file_analysis = (
-            ai_analysis.get("file_analysis")
+            or ai_analysis.get("importantRequests")
             or []
         )
 
         rebuild_options = (
             ai_analysis.get("rebuild_options")
-            or ai_analysis.get("rebuild_ways")
+            or ai_analysis.get("rebuildWays")
             or []
         )
 
-        story = []
+        file_analysis = (
+            ai_analysis.get("file_analysis")
+            or ai_analysis.get("files_analysis")
+            or ai_analysis.get("fileAnalysis")
+            or []
+        )
+
+        estimated_time = (
+            ai_analysis.get(
+                "estimated_development_time"
+            )
+            or ai_analysis.get(
+                "estimated_time"
+            )
+            or ai_analysis.get(
+                "development_time"
+            )
+        )
+
+        routing = (
+            ai_analysis.get(
+                "routing"
+            )
+            or ai_analysis.get(
+                "routes"
+            )
+            or []
+        )
+
+        run_instructions = (
+            ai_analysis.get(
+                "run_instructions"
+            )
+            or ai_analysis.get(
+                "runInstructions"
+            )
+            or []
+        )
+
+        folder_structure = (
+            ai_analysis.get(
+                "folder_structure"
+            )
+            or ai_analysis.get(
+                "folderStructure"
+            )
+        )
 
         # =================================================
-        # COVER
+        # 1. PROJECT UNDERSTANDING
         # =================================================
 
-        story.append(
-            Spacer(
-                1,
-                35 * mm
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "GITORA AI",
-                styles["CoverTitle"]
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "GitHub Repository Analysis Report",
-                styles["CoverSubtitle"]
-            )
-        )
-
-        story.append(
-            Spacer(
-                1,
-                15 * mm
-            )
-        )
-
-        cover_data = [
-
-            [
-                Paragraph(
-                    "<b>Repository</b>",
-                    styles["BodyTextCustom"]
-                ),
-                Paragraph(
-                    escape_html(repository_name),
-                    styles["BodyTextCustom"]
-                )
-            ],
-
-            [
-                Paragraph(
-                    "<b>Full Name</b>",
-                    styles["BodyTextCustom"]
-                ),
-                Paragraph(
-                    escape_html(full_name),
-                    styles["BodyTextCustom"]
-                )
-            ],
-
-            [
-                Paragraph(
-                    "<b>Default Branch</b>",
-                    styles["BodyTextCustom"]
-                ),
-                Paragraph(
-                    escape_html(default_branch),
-                    styles["BodyTextCustom"]
-                )
-            ],
-
-            [
-                Paragraph(
-                    "<b>Files Analyzed</b>",
-                    styles["BodyTextCustom"]
-                ),
-                Paragraph(
-                    str(len(source_files)),
-                    styles["BodyTextCustom"]
-                )
-            ]
-
-        ]
-
-        cover_table = Table(
-            cover_data,
-            colWidths=[
-                45 * mm,
-                125 * mm
-            ]
-        )
-
-        cover_table.setStyle(
-            TableStyle([
-
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (0, -1),
-                    colors.HexColor("#EEF2FF")
-                ),
-
-                (
-                    "BACKGROUND",
-                    (1, 0),
-                    (1, -1),
-                    colors.HexColor("#F8FAFC")
-                ),
-
-                (
-                    "GRID",
-                    (0, 0),
-                    (-1, -1),
-                    0.6,
-                    colors.HexColor("#CBD5E1")
-                ),
-
-                (
-                    "VALIGN",
-                    (0, 0),
-                    (-1, -1),
-                    "MIDDLE"
-                ),
-
-                (
-                    "LEFTPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    10
-                ),
-
-                (
-                    "RIGHTPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    10
-                ),
-
-                (
-                    "TOPPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    9
-                ),
-
-                (
-                    "BOTTOMPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    9
-                )
-
-            ])
-        )
-
-        story.append(cover_table)
-
-        story.append(
-            Spacer(
-                1,
-                20 * mm
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "Code In. Clarity Out.",
-                styles["CoverSubtitle"]
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "Decode. Understand. Build.",
-                styles["CoverSubtitle"]
-            )
-        )
-
-        story.append(PageBreak())
-
-        # =================================================
-        # 1 PROJECT
-        # =================================================
-
-        story.append(
+        story.extend(
             section_title(
                 "1. Project Understanding",
                 styles
@@ -1517,19 +1181,31 @@ def generate_repository_pdf(
 
         story.append(
             create_analysis_box(
-                "What This Project Does",
+                "What this project does",
                 project_summary,
                 styles
             )
         )
 
+        if estimated_time:
+
+            story.append(
+                Spacer(1, 4 * mm)
+            )
+
+            story.append(
+                create_analysis_box(
+                    "Estimated Development Time",
+                    estimated_time,
+                    styles
+                )
+            )
+
         # =================================================
-        # 2 TECHNOLOGY
+        # 2. TECHNOLOGY STACK
         # =================================================
 
-        story.append(Spacer(1, 8))
-
-        story.append(
+        story.extend(
             section_title(
                 "2. Technology Stack",
                 styles
@@ -1544,12 +1220,10 @@ def generate_repository_pdf(
         )
 
         # =================================================
-        # 3 ARCHITECTURE
+        # 3. ARCHITECTURE
         # =================================================
 
-        story.append(Spacer(1, 8))
-
-        story.append(
+        story.extend(
             section_title(
                 "3. Architecture",
                 styles
@@ -1564,13 +1238,41 @@ def generate_repository_pdf(
             )
         )
 
+        if folder_structure:
+
+            story.append(
+                Spacer(1, 4 * mm)
+            )
+
+            story.append(
+                create_analysis_box(
+                    "Folder Structure",
+                    folder_structure,
+                    styles
+                )
+            )
+
+        if routing:
+
+            story.append(
+                Paragraph(
+                    "Routing",
+                    styles["GitoraSubsection"]
+                )
+            )
+
+            story.extend(
+                bullet_list(
+                    routing,
+                    styles
+                )
+            )
+
         # =================================================
-        # 4 DEPENDENCIES
+        # 4. DEPENDENCIES
         # =================================================
 
-        story.append(Spacer(1, 8))
-
-        story.append(
+        story.extend(
             section_title(
                 "4. Dependencies",
                 styles
@@ -1585,12 +1287,10 @@ def generate_repository_pdf(
         )
 
         # =================================================
-        # 5 DATABASE
+        # 5. DATABASE
         # =================================================
 
-        story.append(Spacer(1, 8))
-
-        story.append(
+        story.extend(
             section_title(
                 "5. Database",
                 styles
@@ -1606,12 +1306,10 @@ def generate_repository_pdf(
         )
 
         # =================================================
-        # 6 AUTHENTICATION
+        # 6. AUTHENTICATION
         # =================================================
 
-        story.append(Spacer(1, 8))
-
-        story.append(
+        story.extend(
             section_title(
                 "6. Authentication",
                 styles
@@ -1620,19 +1318,17 @@ def generate_repository_pdf(
 
         story.append(
             create_analysis_box(
-                "Authentication & Authorization",
+                "Authentication / Login",
                 authentication,
                 styles
             )
         )
 
         # =================================================
-        # 7 API
+        # 7. API REQUESTS
         # =================================================
 
-        story.append(PageBreak())
-
-        story.append(
+        story.extend(
             section_title(
                 "7. Important API Requests",
                 styles
@@ -1647,14 +1343,10 @@ def generate_repository_pdf(
         )
 
         # =================================================
-        # 8 REBUILD
+        # 8. REBUILD OPTIONS
         # =================================================
 
-        story.append(
-            Spacer(1, 12)
-        )
-
-        story.append(
+        story.extend(
             section_title(
                 "8. Three Ways to Rebuild This Project",
                 styles
@@ -1669,216 +1361,85 @@ def generate_repository_pdf(
         )
 
         # =================================================
-        # 9 FILE ANALYSIS
+        # 9. FILE-BY-FILE EXPLANATION
         # =================================================
 
-        story.append(PageBreak())
-
-        story.append(
+        story.extend(
             section_title(
                 "9. File-by-File Explanation",
                 styles
             )
         )
 
-        if file_analysis:
-
-            story.extend(
-                build_file_analysis(
-                    file_analysis,
-                    styles
-                )
+        story.extend(
+            build_file_analysis(
+                file_analysis,
+                styles
             )
-
-        else:
-
-            story.append(
-                Paragraph(
-                    "No file-by-file AI analysis was returned.",
-                    styles["BodyTextCustom"]
-                )
-            )
+        )
 
         # =================================================
-        # 10 SOURCE FILE SUMMARY
+        # 10. SELECTED SOURCE FILES
         # =================================================
 
-        story.append(PageBreak())
-
-        story.append(
+        story.extend(
             section_title(
                 "10. Selected Source Files",
                 styles
             )
         )
 
-        if source_files:
+        for file_item in source_files:
 
-            source_rows = [[
+            if not isinstance(
+                file_item,
+                dict
+            ):
 
-                Paragraph(
-                    "File",
-                    styles["TableHeader"]
-                ),
+                continue
 
-                Paragraph(
-                    "Category",
-                    styles["TableHeader"]
-                ),
-
-                Paragraph(
-                    "Size",
-                    styles["TableHeader"]
-                )
-
-            ]]
-
-            for file in source_files:
-
-                if not isinstance(file, dict):
-                    continue
-
-                path = safe_text(
-                    file.get("path"),
-                    "Unknown"
-                )
-
-                categories = file.get(
-                    "categories",
-                    []
-                )
-
-                content = file.get(
-                    "content",
-                    ""
-                )
-
-                source_rows.append([
-
-                    Paragraph(
-                        escape_html(path),
-                        styles["TableCell"]
-                    ),
-
-                    Paragraph(
-                        escape_html(
-                            safe_text(
-                                categories,
-                                "Uncategorized"
-                            )
-                        ),
-                        styles["TableCell"]
-                    ),
-
-                    Paragraph(
-                        f"{len(str(content)):,} characters",
-                        styles["TableCell"]
-                    )
-
-                ])
-
-            source_table = Table(
-                source_rows,
-                colWidths=[
-                    75 * mm,
-                    55 * mm,
-                    40 * mm
-                ],
-                repeatRows=1
+            path = (
+                file_item.get("path")
+                or "Unknown file"
             )
 
-            source_table.setStyle(
-                TableStyle([
-
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, 0),
-                        colors.HexColor("#6366F1")
-                    ),
-
-                    (
-                        "GRID",
-                        (0, 0),
-                        (-1, -1),
-                        0.5,
-                        colors.HexColor("#CBD5E1")
-                    ),
-
-                    (
-                        "VALIGN",
-                        (0, 0),
-                        (-1, -1),
-                        "TOP"
-                    ),
-
-                    (
-                        "BACKGROUND",
-                        (0, 1),
-                        (-1, -1),
-                        colors.HexColor("#F8FAFC")
-                    ),
-
-                    (
-                        "LEFTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7
-                    ),
-
-                    (
-                        "RIGHTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7
-                    ),
-
-                    (
-                        "TOPPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7
-                    ),
-
-                    (
-                        "BOTTOMPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7
-                    )
-
-                ])
+            categories = file_item.get(
+                "categories",
+                []
             )
 
-            story.append(source_table)
+            category_text = ", ".join(
+                safe_text(item, "")
+                for item in safe_list(
+                    categories
+                )
+            )
 
-        else:
+            if category_text:
+
+                text = (
+                    f"{path} — {category_text}"
+                )
+
+            else:
+
+                text = path
 
             story.append(
                 Paragraph(
-                    "No source files were selected.",
-                    styles["BodyTextCustom"]
+                    "• " + escape_html(text),
+                    styles["GitoraBullet"]
                 )
             )
 
         # =================================================
-        # 11 COMPLETE SOURCE CODE
+        # 11. COMPLETE SELECTED SOURCE CODE
         # =================================================
 
-        story.append(PageBreak())
-
-        story.append(
+        story.extend(
             section_title(
                 "11. Complete Selected Source Code",
                 styles
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "The following section contains the complete source code "
-                "of every file selected for analysis.",
-                styles["BodyTextCustom"]
             )
         )
 
@@ -1889,42 +1450,34 @@ def generate_repository_pdf(
             )
         )
 
-        story.append(
-            Spacer(
-                1,
-                15
-            )
-        )
-
-        story.append(
-            Paragraph(
-                "End of Gitora AI Report",
-                styles["CoverSubtitle"]
-            )
-        )
+        # =================================================
+        # BUILD DOCUMENT
+        # =================================================
 
         print(
-            "PDF SERVICE: Building PDF document..."
+            "Building ReportLab document..."
         )
 
         document.build(
             story,
-            onFirstPage=add_page_number,
-            onLaterPages=add_page_number
+            onFirstPage=draw_page,
+            onLaterPages=draw_page
         )
 
-        buffer.seek(0)
+        # =================================================
+        # VALIDATE PDF
+        # =================================================
+
+        pdf_buffer.seek(0)
+
+        pdf_data = pdf_buffer.getvalue()
 
         pdf_size = len(
-            buffer.getvalue()
+            pdf_data
         )
 
         print(
-            "PDF SERVICE: PDF generated successfully."
-        )
-
-        print(
-            "PDF SERVICE: PDF size:",
+            "Generated PDF size:",
             pdf_size,
             "bytes"
         )
@@ -1932,28 +1485,55 @@ def generate_repository_pdf(
         if pdf_size == 0:
 
             raise RuntimeError(
-                "PDF was generated but contains zero bytes."
+                "Generated PDF is empty."
             )
 
-        return buffer
+        if not pdf_data.startswith(
+            b"%PDF"
+        ):
 
-    except Exception as exc:
+            raise RuntimeError(
+                "Generated data is not a valid PDF."
+            )
+
+        pdf_buffer.seek(0)
 
         print(
-            "============================================="
+            "========================================"
         )
 
         print(
-            "PDF SERVICE ERROR"
+            "✅ PDF SERVICE COMPLETED"
         )
 
         print(
-            type(exc).__name__,
-            str(exc)
+            "========================================"
+        )
+
+        return pdf_buffer
+
+    except Exception as error:
+
+        print(
+            "\n========================================"
         )
 
         print(
-            "============================================="
+            "❌ PDF SERVICE ERROR"
+        )
+
+        print(
+            "ERROR TYPE:",
+            type(error).__name__
+        )
+
+        print(
+            "ERROR:",
+            repr(error)
+        )
+
+        print(
+            "========================================"
         )
 
         raise
