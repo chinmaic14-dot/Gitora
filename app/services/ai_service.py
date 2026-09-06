@@ -2,6 +2,7 @@ import os
 import json
 import re
 import time
+import requests
 
 from dotenv import load_dotenv
 
@@ -17,34 +18,30 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.6-flash"
-)
+).strip()
 
-# Gemini models to try.
-#
+
+# Keep the fallback list controlled.
 # The configured model is always tried first.
-# If it returns 503, Gitora automatically tries
-# the next model.
-#
-# These are currently valid Gemini Flash model IDs.
 GEMINI_MODELS = []
 
 for model_name in [
     MODEL,
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite"
 ]:
-    if model_name not in GEMINI_MODELS:
+    model_name = str(model_name).strip()
+
+    if model_name and model_name not in GEMINI_MODELS:
         GEMINI_MODELS.append(model_name)
 
 
-def get_gemini_url(model_name):
-    """
-    Build Gemini generateContent URL for a model.
-    """
+# ============================================================
+# GEMINI URL
+# ============================================================
 
+def get_gemini_url(model_name):
     return (
         "https://generativelanguage.googleapis.com/"
         f"v1beta/models/{model_name}:generateContent"
@@ -56,10 +53,6 @@ def get_gemini_url(model_name):
 # ============================================================
 
 def safe_value(value, default="None identified."):
-    """
-    Safely convert a value into a usable string.
-    """
-
     if value is None:
         return default
 
@@ -75,9 +68,15 @@ def safe_value(value, default="None identified."):
 
         for item in value:
             if isinstance(item, dict):
-                values.append(
-                    json.dumps(item, ensure_ascii=False)
-                )
+                try:
+                    values.append(
+                        json.dumps(
+                            item,
+                            ensure_ascii=False
+                        )
+                    )
+                except Exception:
+                    continue
             else:
                 text = str(item).strip()
 
@@ -95,24 +94,27 @@ def safe_value(value, default="None identified."):
         except Exception:
             return default
 
-    return str(value).strip() or default
+    text = str(value).strip()
+
+    return text if text else default
 
 
 def normalize_list(value):
-    """
-    Convert Gemini output into a clean list of strings.
-    """
 
     if value is None:
         return []
 
     if isinstance(value, list):
+
         result = []
 
         for item in value:
 
             if isinstance(item, dict):
-                text = safe_value(item, "")
+                text = safe_value(
+                    item,
+                    ""
+                )
             else:
                 text = str(item).strip()
 
@@ -122,10 +124,15 @@ def normalize_list(value):
         return result
 
     if isinstance(value, dict):
+
         result = []
 
         for key, item in value.items():
-            text = f"{key}: {safe_value(item, '')}".strip()
+
+            text = (
+                f"{key}: "
+                f"{safe_value(item, '')}"
+            ).strip()
 
             if text:
                 result.append(text)
@@ -139,17 +146,18 @@ def normalize_list(value):
         if not value:
             return []
 
-        # Handle JSON list returned as string
         try:
+
             parsed = json.loads(value)
 
             if isinstance(parsed, list):
                 return normalize_list(parsed)
+
         except Exception:
             pass
 
-        # Handle common separators
         if "\n" in value:
+
             return [
                 line.strip("-• ").strip()
                 for line in value.splitlines()
@@ -157,6 +165,7 @@ def normalize_list(value):
             ]
 
         if ";" in value:
+
             return [
                 item.strip()
                 for item in value.split(";")
@@ -173,9 +182,6 @@ def normalize_list(value):
 # ============================================================
 
 def build_repository_context(repository, files):
-    """
-    Build a compact repository context for Gemini.
-    """
 
     repository = repository or {}
 
@@ -221,15 +227,19 @@ Files:
             "Unknown file"
         )
 
-        content = file.get("content", "")
+        content = file.get(
+            "content",
+            ""
+        )
 
         if content is None:
             content = ""
 
         content = str(content)
 
-        # Keep prompts from becoming unnecessarily huge
+        # Prevent extremely large Gemini requests.
         if len(content) > 30000:
+
             content = (
                 content[:30000]
                 + "\n\n[FILE CONTENT TRUNCATED]"
@@ -247,27 +257,40 @@ FILE: {path}
 
 
 # ============================================================
-# EMPTY RESPONSES
+# EMPTY ANALYSIS
 # ============================================================
 
-def empty_analysis(message="AI analysis unavailable."):
-    """
-    Standard fallback for repository analysis.
-    """
+def empty_analysis(
+    message="AI analysis unavailable."
+):
 
     return {
+
         "project_summary": message,
+
         "technology_stack": [],
+
         "architecture": message,
+
         "dependencies": [],
+
         "database": message,
+
         "authentication": message,
+
         "important_requests": [],
+
         "file_analysis": [],
+
         "rebuild_options": [],
-        "estimated_development_time": "Not identified.",
+
+        "estimated_development_time":
+            "Not identified.",
+
         "routing": [],
+
         "run_instructions": [],
+
         "folder_structure": message
     }
 
@@ -276,11 +299,9 @@ def empty_file_analysis(
     file_path="",
     message="AI analysis unavailable."
 ):
-    """
-    Standard fallback for individual file analysis.
-    """
 
     return {
+
         "file": file_path,
 
         "what_it_does": message,
@@ -295,7 +316,6 @@ def empty_file_analysis(
 
         "what_breaks": message,
 
-        # Compatibility fields
         "what_breaks_without_it": message,
 
         "connections": [],
@@ -309,14 +329,6 @@ def empty_file_analysis(
 # ============================================================
 
 def extract_json(text):
-    """
-    Extract JSON safely from Gemini response.
-
-    Gemini may return:
-    - pure JSON
-    - JSON inside ```json blocks
-    - JSON surrounded by explanation text
-    """
 
     if not text:
         return None
@@ -329,7 +341,7 @@ def extract_json(text):
     if not text:
         return None
 
-    # Remove markdown code fences
+    # Remove markdown fences.
     text = re.sub(
         r"```json\s*",
         "",
@@ -345,13 +357,14 @@ def extract_json(text):
 
     text = text.strip()
 
-    # Direct JSON
+    # Direct JSON.
     try:
         return json.loads(text)
+
     except Exception:
         pass
 
-    # Find JSON object
+    # JSON object.
     first_object = text.find("{")
     last_object = text.rfind("}")
 
@@ -360,16 +373,18 @@ def extract_json(text):
         and last_object != -1
         and last_object > first_object
     ):
+
         candidate = text[
             first_object:last_object + 1
         ]
 
         try:
             return json.loads(candidate)
+
         except Exception:
             pass
 
-    # Find JSON array
+    # JSON array.
     first_array = text.find("[")
     last_array = text.rfind("]")
 
@@ -378,12 +393,14 @@ def extract_json(text):
         and last_array != -1
         and last_array > first_array
     ):
+
         candidate = text[
             first_array:last_array + 1
         ]
 
         try:
             return json.loads(candidate)
+
         except Exception:
             pass
 
@@ -391,15 +408,95 @@ def extract_json(text):
 
 
 # ============================================================
-# NORMALIZE OVERALL ANALYSIS
+# FILE NORMALIZATION
+# ============================================================
+
+def normalize_file_analysis(data):
+
+    if not isinstance(data, dict):
+
+        return empty_file_analysis(
+            message=(
+                "Gemini returned an invalid "
+                "file analysis format."
+            )
+        )
+
+    file_path = safe_value(
+        data.get("file")
+        or data.get("file_path")
+        or data.get("filename"),
+        ""
+    )
+
+    result = {
+
+        "file": file_path,
+
+        "what_it_does": safe_value(
+            data.get("what_it_does")
+            or data.get("description")
+            or data.get("purpose")
+        ),
+
+        "why_it_exists": safe_value(
+            data.get("why_it_exists")
+            or data.get("why")
+            or data.get("purpose_reason")
+        ),
+
+        "website_role": safe_value(
+            data.get("website_role")
+            or data.get("how_it_helps")
+            or data.get("role")
+            or data.get("connections")
+        ),
+
+        "dependencies": normalize_list(
+            data.get("dependencies")
+            or data.get("required_files")
+            or data.get("depends_on")
+        ),
+
+        "important_requests": normalize_list(
+            data.get("important_requests")
+            or data.get("api_requests")
+            or data.get("requests")
+            or data.get("endpoints")
+        ),
+
+        "what_breaks": safe_value(
+            data.get("what_breaks")
+            or data.get("what_breaks_without_it")
+            or data.get("impact")
+        )
+    }
+
+    result["what_breaks_without_it"] = (
+        result["what_breaks"]
+    )
+
+    result["connections"] = (
+        result["important_requests"]
+    )
+
+    result["important_code"] = normalize_list(
+        data.get("important_code")
+        or data.get("key_code")
+        or []
+    )
+
+    return result
+
+
+# ============================================================
+# ANALYSIS NORMALIZATION
 # ============================================================
 
 def normalize_analysis(data):
-    """
-    Normalize Gemini's repository-level response.
-    """
 
     if not isinstance(data, dict):
+
         return empty_analysis(
             "Gemini returned an invalid analysis format."
         )
@@ -472,23 +569,19 @@ def normalize_analysis(data):
     # FILE ANALYSIS
     # --------------------------------------------------------
 
-    file_analysis = data.get("file_analysis")
+    file_analysis = data.get(
+        "file_analysis",
+        []
+    )
 
     if not isinstance(file_analysis, list):
         file_analysis = []
 
-    normalized_files = []
-
-    for item in file_analysis:
-
-        if not isinstance(item, dict):
-            continue
-
-        normalized_files.append(
-            normalize_file_analysis(item)
-        )
-
-    result["file_analysis"] = normalized_files
+    result["file_analysis"] = [
+        normalize_file_analysis(item)
+        for item in file_analysis
+        if isinstance(item, dict)
+    ]
 
     # --------------------------------------------------------
     # REBUILD OPTIONS
@@ -511,6 +604,7 @@ def normalize_analysis(data):
         if isinstance(item, dict):
 
             normalized_rebuild.append({
+
                 "title": safe_value(
                     item.get("title")
                     or item.get("name")
@@ -537,106 +631,20 @@ def normalize_analysis(data):
         else:
 
             normalized_rebuild.append({
+
                 "title": safe_value(item),
-                "description": "None identified.",
+
+                "description":
+                    "None identified.",
+
                 "technology": [],
-                "estimated_time": "Not identified."
+
+                "estimated_time":
+                    "Not identified."
             })
 
-    result["rebuild_options"] = normalized_rebuild
-
-    return result
-
-
-# ============================================================
-# NORMALIZE INDIVIDUAL FILE ANALYSIS
-# ============================================================
-
-def normalize_file_analysis(data):
-    """
-    Normalize Gemini's individual-file response.
-
-    Canonical fields expected by analysis.html:
-
-    - file
-    - what_it_does
-    - why_it_exists
-    - website_role
-    - dependencies
-    - important_requests
-    - what_breaks
-    """
-
-    if not isinstance(data, dict):
-        return empty_file_analysis(
-            message="Gemini returned an invalid file analysis format."
-        )
-
-    file_path = safe_value(
-        data.get("file")
-        or data.get("file_path")
-        or data.get("filename"),
-        ""
-    )
-
-    result = {
-        "file": file_path,
-
-        "what_it_does": safe_value(
-            data.get("what_it_does")
-            or data.get("description")
-            or data.get("purpose")
-        ),
-
-        "why_it_exists": safe_value(
-            data.get("why_it_exists")
-            or data.get("why")
-            or data.get("purpose_reason")
-        ),
-
-        "website_role": safe_value(
-            data.get("website_role")
-            or data.get("how_it_helps")
-            or data.get("role")
-            or data.get("connections")
-        ),
-
-        "dependencies": normalize_list(
-            data.get("dependencies")
-            or data.get("required_files")
-            or data.get("depends_on")
-        ),
-
-        "important_requests": normalize_list(
-            data.get("important_requests")
-            or data.get("api_requests")
-            or data.get("requests")
-            or data.get("endpoints")
-        ),
-
-        "what_breaks": safe_value(
-            data.get("what_breaks")
-            or data.get("what_breaks_without_it")
-            or data.get("impact")
-        )
-    }
-
-    # --------------------------------------------------------
-    # Compatibility aliases
-    # --------------------------------------------------------
-
-    result["what_breaks_without_it"] = result[
-        "what_breaks"
-    ]
-
-    result["connections"] = result[
-        "important_requests"
-    ]
-
-    result["important_code"] = normalize_list(
-        data.get("important_code")
-        or data.get("key_code")
-        or []
+    result["rebuild_options"] = (
+        normalized_rebuild
     )
 
     return result
@@ -647,27 +655,39 @@ def normalize_file_analysis(data):
 # ============================================================
 
 def call_gemini_json(prompt):
-    """
-    Send a prompt to Gemini and return parsed JSON.
 
-    If Gemini returns 503, Gitora automatically tries
-    the next available Gemini model.
-
-    429 quota/rate-limit errors are NOT endlessly retried.
-    """
+    print()
+    print("========================================")
+    print("🔥 GEMINI CONNECTION CHECK")
+    print("========================================")
 
     if not GEMINI_API_KEY:
-        print()
-        print("========================================")
+
         print("❌ GEMINI_API_KEY IS MISSING")
+        print(
+            "Render environment variable "
+            "GEMINI_API_KEY was not found."
+        )
         print("========================================")
-        print()
 
         return None
 
-    import requests
+    print("✅ GEMINI_API_KEY FOUND")
+    print(
+        "Configured model:",
+        MODEL
+    )
+
+    print(
+        "Models to try:",
+        GEMINI_MODELS
+    )
+
+    print("========================================")
+    print()
 
     payload = {
+
         "contents": [
             {
                 "parts": [
@@ -680,22 +700,27 @@ def call_gemini_json(prompt):
 
         "generationConfig": {
             "temperature": 0.2,
-            "responseMimeType": "application/json"
+            "responseMimeType":
+                "application/json"
         }
     }
 
     headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
+
+        "Content-Type":
+            "application/json",
+
+        "x-goog-api-key":
+            GEMINI_API_KEY
     }
 
-    # --------------------------------------------------------
-    # TRY EACH GEMINI MODEL
-    # --------------------------------------------------------
+    for index, model_name in enumerate(
+        GEMINI_MODELS
+    ):
 
-    for index, model_name in enumerate(GEMINI_MODELS):
-
-        url = get_gemini_url(model_name)
+        url = get_gemini_url(
+            model_name
+        )
 
         print()
         print("========================================")
@@ -711,14 +736,21 @@ def call_gemini_json(prompt):
             "/",
             len(GEMINI_MODELS)
         )
-        print()
+        print(
+            "URL:",
+            url
+        )
 
         try:
 
             response = requests.post(
+
                 url,
+
                 headers=headers,
+
                 json=payload,
+
                 timeout=120
             )
 
@@ -727,33 +759,44 @@ def call_gemini_json(prompt):
                 response.status_code
             )
 
-            # =================================================
+            # ------------------------------------------------
             # SUCCESS
-            # =================================================
+            # ------------------------------------------------
 
             if response.status_code == 200:
 
                 try:
 
-                    response_data = response.json()
+                    response_data = (
+                        response.json()
+                    )
 
-                except Exception:
+                except Exception as error:
 
                     print(
-                        "❌ Gemini returned invalid HTTP JSON."
+                        "❌ Invalid Gemini HTTP JSON:",
+                        type(error).__name__,
+                        str(error)
                     )
 
                     continue
 
-                candidates = response_data.get(
-                    "candidates",
-                    []
+                candidates = (
+                    response_data.get(
+                        "candidates",
+                        []
+                    )
                 )
 
                 if not candidates:
 
                     print(
-                        "❌ Gemini response contains no candidates."
+                        "❌ Gemini returned no candidates."
+                    )
+
+                    print(
+                        "Response:",
+                        response.text[:3000]
                     )
 
                     continue
@@ -773,7 +816,12 @@ def call_gemini_json(prompt):
                 if not parts:
 
                     print(
-                        "❌ Gemini response contains no parts."
+                        "❌ Gemini returned no parts."
+                    )
+
+                    print(
+                        "Response:",
+                        response.text[:3000]
                     )
 
                     continue
@@ -786,17 +834,19 @@ def call_gemini_json(prompt):
                 if not text:
 
                     print(
-                        "❌ Gemini response text is empty."
+                        "❌ Gemini returned empty text."
                     )
 
                     continue
 
-                parsed = extract_json(text)
+                parsed = extract_json(
+                    text
+                )
 
                 if parsed is None:
 
                     print(
-                        "❌ Could not extract JSON from Gemini response."
+                        "❌ Gemini JSON extraction failed."
                     )
 
                     print(
@@ -814,156 +864,126 @@ def call_gemini_json(prompt):
                     "Working model:",
                     model_name
                 )
+                print("========================================")
                 print()
 
                 return parsed
 
-            # =================================================
-            # 503 - TEMPORARY UNAVAILABLE
-            # =================================================
+            # ------------------------------------------------
+            # 503
+            # ------------------------------------------------
 
-            elif response.status_code == 503:
+            if response.status_code == 503:
 
-                print()
                 print(
-                    "⚠️ GEMINI MODEL TEMPORARILY UNAVAILABLE"
+                    "⚠️ Gemini model temporarily unavailable."
                 )
-                print(
-                    "Model:",
-                    model_name
-                )
-                print(
-                    "Trying another Gemini model..."
-                )
-                print()
 
-                # Short delay before next model
-                time.sleep(2)
+                print(
+                    response.text[:2000]
+                )
+
+                if index < len(
+                    GEMINI_MODELS
+                ) - 1:
+
+                    time.sleep(2)
 
                 continue
 
-            # =================================================
-            # 429 - QUOTA / RATE LIMIT
-            # =================================================
+            # ------------------------------------------------
+            # 429
+            # ------------------------------------------------
 
-            elif response.status_code == 429:
+            if response.status_code == 429:
 
-                print()
-                print("========================================")
-                print("❌ GEMINI QUOTA / RATE LIMIT")
-                print("========================================")
+                print(
+                    "❌ Gemini quota/rate limit."
+                )
+
                 print(
                     response.text[:3000]
                 )
-                print()
 
                 return None
 
-            # =================================================
-            # 400 - BAD REQUEST
-            # =================================================
+            # ------------------------------------------------
+            # 400
+            # ------------------------------------------------
 
-            elif response.status_code == 400:
+            if response.status_code == 400:
 
-                print()
-                print("========================================")
-                print("❌ GEMINI BAD REQUEST")
-                print("========================================")
+                print(
+                    "❌ Gemini BAD REQUEST."
+                )
+
                 print(
                     response.text[:3000]
                 )
-                print()
 
                 return None
 
-            # =================================================
-            # 401 / 403 - KEY OR PERMISSION
-            # =================================================
+            # ------------------------------------------------
+            # 401 / 403
+            # ------------------------------------------------
 
-            elif response.status_code in (401, 403):
+            if response.status_code in (
+                401,
+                403
+            ):
 
-                print()
-                print("========================================")
-                print("❌ GEMINI API KEY / PERMISSION ERROR")
-                print("========================================")
+                print(
+                    "❌ Gemini API KEY / "
+                    "PERMISSION ERROR."
+                )
+
                 print(
                     response.text[:3000]
                 )
-                print()
 
                 return None
 
-            # =================================================
-            # OTHER ERROR
-            # =================================================
+            # ------------------------------------------------
+            # OTHER
+            # ------------------------------------------------
 
-            else:
+            print(
+                "⚠️ Gemini API error:"
+            )
 
-                print()
-                print(
-                    "⚠️ Gemini API error:"
-                )
+            print(
+                response.text[:3000]
+            )
 
-                print(
-                    response.text[:3000]
-                )
-
-                print(
-                    "Trying next model..."
-                )
-
-                continue
+            continue
 
         except requests.exceptions.Timeout:
 
-            print()
             print(
                 "⚠️ Gemini request timed out."
             )
-            print(
-                "Trying next model..."
-            )
-            print()
 
             continue
 
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
 
-            print()
             print(
-                "⚠️ Gemini network exception:"
+                "❌ Gemini network error:",
+                type(error).__name__,
+                str(error)
             )
-            print(
-                type(e).__name__,
-                str(e)
-            )
-            print(
-                "Trying next model..."
-            )
-            print()
 
             continue
 
-        except Exception as e:
+        except Exception as error:
 
-            print()
             print(
-                "⚠️ Gemini API exception:"
+                "❌ Gemini unexpected error:",
+                type(error).__name__,
+                str(error)
             )
-            print(
-                type(e).__name__,
-                str(e)
-            )
-            print(
-                "Trying next model..."
-            )
-            print()
 
             continue
-
-    # ========================================================
-    # ALL MODELS FAILED
-    # ========================================================
 
     print()
     print("========================================")
@@ -975,13 +995,13 @@ def call_gemini_json(prompt):
 
 
 # ============================================================
-# REPOSITORY ANALYSIS
+# FULL REPOSITORY ANALYSIS
 # ============================================================
 
-def analyze_repository(repository, files):
-    """
-    Analyze the complete GitHub repository.
-    """
+def analyze_repository(
+    repository,
+    files
+):
 
     context = build_repository_context(
         repository,
@@ -989,16 +1009,17 @@ def analyze_repository(repository, files):
     )
 
     prompt = f"""
-You are Gitora AI, an expert software engineer and repository analyst.
+You are Gitora AI, an expert software engineer
+and repository analyst.
 
-Analyze the supplied GitHub repository using ONLY the repository
-information and source code provided below.
+Analyze the supplied GitHub repository using ONLY
+the repository information and source code supplied below.
 
-Do not invent technologies, APIs, databases, authentication systems,
-routes, dependencies, or behavior that cannot be supported by the
-provided source code.
+Do not invent technologies, APIs, databases,
+authentication systems, routes, dependencies,
+or behavior.
 
-If something cannot be identified from the supplied code, return:
+If something cannot be identified, return:
 
 "None identified."
 
@@ -1017,7 +1038,7 @@ Use exactly this structure:
     "Technology and its actual purpose"
   ],
 
-  "architecture": "Explain how the major parts of the project connect.",
+  "architecture": "Explain how the major parts connect.",
 
   "dependencies": [
     "Important dependency and why it is used"
@@ -1028,7 +1049,7 @@ Use exactly this structure:
   "authentication": "Explain authentication/login/session handling or say None identified.",
 
   "important_requests": [
-    "Important API request, route, endpoint, database operation, or external service call"
+    "Actual API request, route, endpoint, database operation, or external service call"
   ],
 
   "routing": [
@@ -1039,75 +1060,63 @@ Use exactly this structure:
     "Concrete steps required to run the project"
   ],
 
-  "estimated_development_time": "Estimate based on the supplied project complexity.",
+  "estimated_development_time": "Estimate based on supplied project complexity.",
 
-  "folder_structure": "Explain the important project folders/files and their responsibilities.",
+  "folder_structure": "Explain important project folders/files and their responsibilities.",
 
   "file_analysis": [
     {{
       "file": "Exact file path",
-
       "what_it_does": "What this file actually does.",
-
-      "why_it_exists": "Why this file is needed in the project.",
-
-      "website_role": "Explain exactly how this file helps the website/application and how it contributes to the user-facing functionality.",
-
+      "why_it_exists": "Why this file exists.",
+      "website_role": "How this file helps the website/application.",
       "dependencies": [
-        "Files, modules, services, libraries, database models, or other components this file depends on"
+        "Actual dependencies"
       ],
-
       "important_requests": [
-        "Actual API requests, Flask routes, HTTP calls, database operations, external service calls, or important endpoints found in this file"
+        "Actual requests, routes, APIs, database operations, or external calls"
       ],
-
-      "what_breaks": "Explain specifically what functionality would stop working, become incomplete, or fail if this file were removed."
+      "what_breaks": "What specifically breaks if this file is removed."
     }}
   ],
 
   "rebuild_options": [
     {{
       "title": "Alternative implementation",
-
-      "description": "Explain how the project could be rebuilt differently.",
-
+      "description": "Explain the alternative.",
       "technology": [
         "Suggested technologies"
       ],
-
       "estimated_time": "Estimated development time"
     }}
   ]
 }}
 
-IMPORTANT FOR file_analysis:
+For EVERY supplied file explain:
 
-For EVERY file, clearly answer:
+1. What it does.
+2. Why it exists.
+3. How it helps the website.
+4. What it depends on.
+5. Important requests/routes/APIs/database operations.
+6. What breaks if it is removed.
 
-1. What does this file do?
-2. Why does this file exist?
-3. How does this file help the website/project?
-4. What files/modules/services does it depend on?
-5. What important API requests, routes, endpoints, database operations,
-   or external calls are present?
-6. What specifically breaks if the file is removed?
-
-Do not provide vague statements such as:
-"This file is important."
-
-Explain the actual functionality and consequence.
-
-Only analyze files that were supplied.
+Return JSON only.
 """
 
-    data = call_gemini_json(prompt)
+    data = call_gemini_json(
+        prompt
+    )
 
     if data is None:
+
         return empty_analysis(
             "Gemini could not generate repository analysis."
         )
 
-    return normalize_analysis(data)
+    return normalize_analysis(
+        data
+    )
 
 
 # ============================================================
@@ -1119,12 +1128,9 @@ def analyze_single_file(
     files,
     selected_file
 ):
-    """
-    Analyze one selected file in the context of the
-    complete repository.
-    """
 
     if not selected_file:
+
         return empty_file_analysis(
             message="No file was selected."
         )
@@ -1154,23 +1160,26 @@ def analyze_single_file(
             break
 
     if selected_content is None:
+
         return empty_file_analysis(
             file_path=selected_file,
-            message="Selected file was not found in the supplied repository."
+            message=(
+                "Selected file was not found "
+                "in the supplied repository."
+            )
         )
 
     selected_content = str(
         selected_content
     )
 
-    # Limit extremely large files
     if len(selected_content) > 50000:
+
         selected_content = (
             selected_content[:50000]
             + "\n\n[FILE CONTENT TRUNCATED]"
         )
 
-    # Build repository-level file map
     repository_files = []
 
     for file in files or []:
@@ -1194,136 +1203,92 @@ def analyze_single_file(
     prompt = f"""
 You are Gitora AI, an expert software engineer.
 
-Analyze ONE specific file from the GitHub project below.
+Analyze ONE specific file from this GitHub project.
 
 Repository:
 {repository_name}
 
 All repository files:
-{json.dumps(repository_files, ensure_ascii=False, indent=2)}
+{json.dumps(
+    repository_files,
+    ensure_ascii=False,
+    indent=2
+)}
 
 Selected file:
 {selected_file}
 
 Selected file source code:
+
 --------------------------------------------------
 {selected_content}
 --------------------------------------------------
 
-Your analysis MUST be based ONLY on the supplied source code
-and repository file names.
+Use ONLY the supplied source code and repository file names.
 
-Do NOT invent behavior.
-
-If something cannot be identified from the code, say:
-
-"None identified."
-
-Return ONLY valid JSON.
-
-Use EXACTLY this structure:
+Return ONLY valid JSON:
 
 {{
   "file": "{selected_file}",
 
-  "what_it_does": "Explain exactly what this file does, including its main functions, classes, routes, UI behavior, database behavior, or processing.",
+  "what_it_does": "Explain exactly what this file does.",
 
-  "why_it_exists": "Explain why this file is needed and what responsibility it has in the project.",
+  "why_it_exists": "Explain why this file is needed.",
 
-  "website_role": "Explain concretely HOW THIS FILE HELPS THE WEBSITE OR APPLICATION. Describe the actual user-facing or system-level functionality that depends on it.",
+  "website_role": "Explain concretely how this file helps the website or application.",
 
   "dependencies": [
-    "Actual files, modules, libraries, services, database models, APIs, or components this file depends on"
+    "Actual files, modules, libraries, services, APIs, models, or components"
   ],
 
   "important_requests": [
-    "Actual HTTP/API requests, Flask routes, endpoints, database operations, external service calls, or other important requests found in this file"
+    "Actual API requests, routes, endpoints, database operations, or external calls"
   ],
 
-  "what_breaks": "Explain specifically what would stop working, fail, disappear, or become incomplete if this file were removed."
+  "what_breaks": "Explain exactly what stops working if this file is removed."
 }}
 
-VERY IMPORTANT:
+Do not invent information.
 
-### WHAT IT DOES
-Explain the actual implementation.
-
-### WHY IT EXISTS
-Explain the architectural responsibility of this file.
-
-### HOW IT HELPS THE WEBSITE
-This is NOT the same as "what it does".
-
-Explain how the file contributes to the complete website/application.
-
-For example:
-- Does it render a page?
-- Does it handle login?
-- Does it connect the frontend to the backend?
-- Does it store data?
-- Does it process GitHub data?
-- Does it generate reports?
-- Does it provide an API?
-- Does it provide styling or JavaScript behavior?
-
-Only state what is supported by the supplied code.
-
-### DEPENDENCIES
-Mention actual imports and project components used by the file.
-
-### IMPORTANT REQUESTS
-Mention actual:
-- HTTP requests
-- API calls
-- Flask routes
-- endpoints
-- database queries
-- external services
-- GitHub API calls
-- Gemini API calls
-- AJAX/fetch requests
-
-Do NOT invent requests that are not present.
-
-### WHAT BREAKS
-Be specific.
-
-Do NOT simply say:
-"This file is important."
-
-Explain what functionality would actually stop working if this file disappeared.
-
-If no important requests or dependencies are visible, return:
+If something cannot be identified:
 
 "None identified."
-
-For list fields, use [] when there are genuinely no items.
 
 Return JSON only.
 """
 
-    data = call_gemini_json(prompt)
+    data = call_gemini_json(
+        prompt
+    )
 
     if data is None:
+
         return empty_file_analysis(
             file_path=selected_file,
-            message="Gemini could not analyze this file."
+            message=(
+                "Gemini could not analyze this file."
+            )
         )
 
     if not isinstance(data, dict):
+
         return empty_file_analysis(
             file_path=selected_file,
-            message="Gemini returned an invalid file analysis."
+            message=(
+                "Gemini returned an invalid "
+                "file analysis."
+            )
         )
 
-    # Make sure the selected filename is retained
     data["file"] = selected_file
 
-    return normalize_file_analysis(data)
+    return normalize_file_analysis(
+        data
+    )
 
 
 # ============================================================
-# ASK AI ABOUT REPOSITORY
+# ASK AI
 # ============================================================
 
 def answer_repository_question(
@@ -1331,12 +1296,6 @@ def answer_repository_question(
     repository,
     files
 ):
-    """
-    Answer a user's question about the repository.
-
-    Uses the same Gemini model fallback system as
-    the main repository analysis.
-    """
 
     question = safe_value(
         question,
@@ -1360,12 +1319,7 @@ Use ONLY the supplied repository information and source code.
 
 Do not invent information.
 
-If the answer cannot be determined from the supplied code,
-clearly say:
-
-"None identified from the supplied repository."
-
-Repository context:
+Repository:
 
 {context}
 
@@ -1373,7 +1327,7 @@ User question:
 
 {question}
 
-Give a clear, practical answer.
+Give a clear practical answer.
 
 When useful, mention:
 - exact files
@@ -1385,19 +1339,19 @@ When useful, mention:
 - dependencies
 - frontend/backend connections
 
-Do not return JSON.
-Return a normal human-readable answer.
+Return normal human-readable text.
 """
 
     if not GEMINI_API_KEY:
+
         return (
             "Gemini API key is not configured. "
-            "Please add GEMINI_API_KEY to the Render environment variables."
+            "Please add GEMINI_API_KEY to the "
+            "Render environment variables."
         )
 
-    import requests
-
     payload = {
+
         "contents": [
             {
                 "parts": [
@@ -1414,15 +1368,17 @@ Return a normal human-readable answer.
     }
 
     headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
+
+        "Content-Type":
+            "application/json",
+
+        "x-goog-api-key":
+            GEMINI_API_KEY
     }
 
-    # --------------------------------------------------------
-    # TRY ALL GEMINI MODELS FOR CHAT
-    # --------------------------------------------------------
-
-    for index, model_name in enumerate(GEMINI_MODELS):
+    for index, model_name in enumerate(
+        GEMINI_MODELS
+    ):
 
         print()
         print("----------------------------------------")
@@ -1432,19 +1388,19 @@ Return a normal human-readable answer.
             "Model:",
             model_name
         )
-        print(
-            "Attempt:",
-            index + 1,
-            "/",
-            len(GEMINI_MODELS)
-        )
 
         try:
 
             response = requests.post(
-                get_gemini_url(model_name),
+
+                get_gemini_url(
+                    model_name
+                ),
+
                 headers=headers,
+
                 json=payload,
+
                 timeout=120
             )
 
@@ -1453,163 +1409,85 @@ Return a normal human-readable answer.
                 response.status_code
             )
 
-            # ------------------------------------------------
-            # SUCCESS
-            # ------------------------------------------------
-
             if response.status_code == 200:
 
-                try:
+                response_data = (
+                    response.json()
+                )
 
-                    response_data = response.json()
-
-                except Exception:
-
-                    print(
-                        "Gemini returned invalid response JSON."
+                candidates = (
+                    response_data.get(
+                        "candidates",
+                        []
                     )
-
-                    continue
-
-                candidates = response_data.get(
-                    "candidates",
-                    []
                 )
 
                 if not candidates:
-
-                    print(
-                        "Gemini returned no candidates."
-                    )
-
                     continue
 
                 parts = (
                     candidates[0]
-                    .get("content", {})
-                    .get("parts", [])
+                    .get(
+                        "content",
+                        {}
+                    )
+                    .get(
+                        "parts",
+                        []
+                    )
                 )
 
                 if not parts:
-
-                    print(
-                        "Gemini returned no answer parts."
-                    )
-
                     continue
-
-                answer = parts[0].get(
-                    "text",
-                    ""
-                )
 
                 answer = str(
-                    answer or ""
+                    parts[0].get(
+                        "text",
+                        ""
+                    )
                 ).strip()
 
-                if not answer:
+                if answer:
 
                     print(
-                        "Gemini returned an empty answer."
+                        "✅ GEMINI QUESTION SUCCESS"
                     )
 
-                    continue
-
-                print()
-                print(
-                    "✅ GEMINI QUESTION SUCCESS"
-                )
-                print(
-                    "Working model:",
-                    model_name
-                )
-                print()
-
-                return answer
-
-            # ------------------------------------------------
-            # 503
-            # ------------------------------------------------
-
-            elif response.status_code == 503:
-
-                print(
-                    "⚠️ Gemini model unavailable."
-                )
-
-                print(
-                    "Trying next model..."
-                )
-
-                time.sleep(2)
+                    return answer
 
                 continue
 
-            # ------------------------------------------------
-            # 429
-            # ------------------------------------------------
+            if response.status_code == 503:
 
-            elif response.status_code == 429:
+                time.sleep(2)
+                continue
 
-                print()
-                print(
-                    "❌ Gemini quota/rate limit reached."
-                )
-
-                print(
-                    response.text[:3000]
-                )
+            if response.status_code == 429:
 
                 return (
                     "Gemini quota/rate limit reached. "
                     "Please try again later."
                 )
 
-            # ------------------------------------------------
-            # 400
-            # ------------------------------------------------
-
-            elif response.status_code == 400:
-
-                print(
-                    "❌ Gemini bad request."
-                )
+            if response.status_code in (
+                400,
+                401,
+                403
+            ):
 
                 print(
                     response.text[:3000]
                 )
 
                 return (
-                    "Gemini rejected the request."
+                    "Gemini API configuration error. "
+                    "Please check GEMINI_API_KEY "
+                    "and GEMINI_MODEL in Render."
                 )
 
-            # ------------------------------------------------
-            # 401 / 403
-            # ------------------------------------------------
-
-            elif response.status_code in (401, 403):
-
-                print(
-                    "❌ Gemini API key or permission error."
-                )
-
-                print(
-                    response.text[:3000]
-                )
-
-                return (
-                    "Gemini API key or permission error. "
-                    "Please check GEMINI_API_KEY."
-                )
-
-            else:
-
-                print(
-                    "⚠️ Gemini question error:",
-                    response.text[:3000]
-                )
-
-                continue
+            print(
+                response.text[:2000]
+            )
 
         except requests.exceptions.Timeout:
 
@@ -1617,31 +1495,25 @@ Return a normal human-readable answer.
                 "⚠️ Gemini question timed out."
             )
 
-            continue
-
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException as error:
 
             print(
-                "⚠️ Gemini question network error:",
-                type(e).__name__,
-                str(e)
+                "❌ Gemini question network error:",
+                type(error).__name__,
+                str(error)
             )
 
-            continue
-
-        except Exception as e:
+        except Exception as error:
 
             print(
-                "⚠️ Gemini question exception:",
-                type(e).__name__,
-                str(e)
+                "❌ Gemini question error:",
+                type(error).__name__,
+                str(error)
             )
-
-            continue
 
     return (
         "Gemini could not answer the question right now. "
-        "All available Gemini models were unavailable."
+        "Please try again."
     )
 
 
@@ -1653,9 +1525,6 @@ def generate_rebuild_strategies(
     repository,
     files
 ):
-    """
-    Generate alternative ways to rebuild the project.
-    """
 
     context = build_repository_context(
         repository,
@@ -1665,31 +1534,26 @@ def generate_rebuild_strategies(
     prompt = f"""
 You are Gitora AI, an expert software architect.
 
-Analyze the supplied project and suggest THREE realistic ways
-to rebuild it using different technology choices or architectures.
+Analyze the supplied project and suggest THREE
+realistic ways to rebuild it.
 
 Use ONLY information supported by the supplied project.
-
-Do not invent requirements.
 
 Repository:
 
 {context}
 
-Return ONLY valid JSON in this structure:
+Return ONLY valid JSON:
 
 {{
   "rebuild_options": [
     {{
       "title": "Approach name",
-
-      "description": "Explain the architecture and implementation approach.",
-
+      "description": "Explain the approach.",
       "technology": [
         "Technology 1",
         "Technology 2"
       ],
-
       "estimated_time": "Estimated development time"
     }}
   ]
@@ -1697,15 +1561,12 @@ Return ONLY valid JSON in this structure:
 
 Make the three approaches meaningfully different.
 
-For example, where appropriate:
-1. Keep the existing architecture but improve it.
-2. Rebuild using another backend/frontend stack.
-3. Rebuild using a modern full-stack or cloud architecture.
-
-Base the suggestions on the actual project.
+Return JSON only.
 """
 
-    data = call_gemini_json(prompt)
+    data = call_gemini_json(
+        prompt
+    )
 
     if data is None:
         return []
@@ -1738,6 +1599,7 @@ Base the suggestions on the actual project.
             continue
 
         result.append({
+
             "title": safe_value(
                 item.get("title")
                 or item.get("name")
