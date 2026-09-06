@@ -39,75 +39,122 @@ main = Blueprint("main", __name__)
 
 
 # =====================================================
-# AI ANALYSIS CACHE
-# =====================================================
-#
-# This stores the latest successful AI analysis for a
-# repository during the lifetime of the Flask process.
-#
-# IMPORTANT:
-# The PDF route uses this first.
-# Therefore, after clicking:
-#
-# Analyze With Gitora AI
-#
-# the PDF does NOT unnecessarily call Gemini again.
-#
-# This is especially important with Gemini free-tier
-# request limits.
+# AI CACHE
 # =====================================================
 
 AI_ANALYSIS_CACHE = {}
 
 
 # =====================================================
-# DATABASE SESSION CLEANUP
+# AI VALIDATION
 # =====================================================
 
-@main.teardown_app_request
-def cleanup_database_session(exception=None):
+def is_valid_ai_analysis(analysis):
 
-    try:
+    if not isinstance(analysis, dict):
+        return False
 
-        db.session.remove()
-
-    except Exception as error:
-
-        print(
-            "DATABASE SESSION CLEANUP ERROR:",
-            repr(error)
+    project_summary = str(
+        analysis.get(
+            "project_summary",
+            ""
         )
+    ).strip()
+
+    if not project_summary:
+        return False
+
+    failed_messages = [
+        "gemini could not generate repository analysis",
+        "gemini could not analyze repository",
+        "ai analysis unavailable",
+        "analysis unavailable",
+        "couldn't analyze",
+        "could not analyze",
+        "failed to analyze",
+        "unable to analyze",
+        "error generating analysis"
+    ]
+
+    lowered = project_summary.lower()
+
+    for message in failed_messages:
+
+        if message in lowered:
+            return False
+
+    return True
 
 
 # =====================================================
-# HELPER
+# GET SAVED FILE PATHS
 # =====================================================
 
 def get_saved_file_paths(repository_name):
 
-    try:
+    selections = SavedFileSelection.query.filter_by(
+        repository=repository_name
+    ).all()
 
-        records = (
-            SavedFileSelection.query
-            .filter_by(repository=repository_name)
-            .all()
-        )
+    return [
+        item.file_path
+        for item in selections
+        if item.file_path
+    ]
 
-        return [
-            record.file_path
-            for record in records
-        ]
 
-    finally:
+# =====================================================
+# LOAD SOURCE FILES
+# =====================================================
 
-        db.session.remove()
+def load_source_files(
+    repository,
+    file_paths
+):
+
+    source_files = []
+
+    if not repository:
+        return source_files
+
+    for file_path in file_paths:
+
+        try:
+
+            content = get_file_content(
+                repository["owner"],
+                repository["repo"],
+                file_path,
+                repository["default_branch"]
+            )
+
+            if content is not None:
+
+                source_files.append({
+                    "path": file_path,
+                    "content": content
+                })
+
+        except Exception as error:
+
+            print(
+                "❌ FILE LOAD ERROR:",
+                file_path,
+                type(error).__name__,
+                str(error)
+            )
+
+    return source_files
 
 
 # =====================================================
 # HOME
 # =====================================================
 
-@main.route("/")
+@main.route(
+    "/",
+    methods=["GET"]
+)
 def home():
 
     return render_template(
@@ -119,12 +166,15 @@ def home():
 # ANALYZE REPOSITORY
 # =====================================================
 
-@main.route("/analyze", methods=["POST"])
+@main.route(
+    "/analyze",
+    methods=["POST"]
+)
 def analyze():
 
-    print("\n========================================")
-    print("🔥 GITORA ANALYZE ROUTE REACHED")
-    print("========================================")
+    print(
+        "\n🔥 GITORA /analyze ROUTE REACHED"
+    )
 
     repo_url = request.form.get(
         "repo_url",
@@ -145,8 +195,12 @@ def analyze():
 
     try:
 
+        # -------------------------------------------------
+        # GET REPOSITORY INFORMATION
+        # -------------------------------------------------
+
         print(
-            "Getting repository information..."
+            "Loading repository information..."
         )
 
         repository = get_repository_info(
@@ -155,11 +209,22 @@ def analyze():
 
         print(
             "Repository loaded:",
-            repository.get("full_name")
+            repository
         )
 
+        if not repository:
+
+            return render_template(
+                "index.html",
+                error="Unable to load GitHub repository."
+            )
+
+        # -------------------------------------------------
+        # GET REPOSITORY FILES
+        # -------------------------------------------------
+
         print(
-            "Getting repository files..."
+            "Loading repository files..."
         )
 
         files = get_repository_files(
@@ -169,70 +234,58 @@ def analyze():
         )
 
         print(
-            "Files received:",
+            "Repository files:",
             len(files)
         )
 
-        categorized_files = []
+        # -------------------------------------------------
+        # SAVED FILES
+        # -------------------------------------------------
 
-        for file in files:
+        repository_name = repository.get(
+            "full_name"
+        )
 
-            categorized_files.append({
-                "path": file["path"],
-                "categories": categorize_file(
-                    file["path"]
-                )
-            })
-
-        saved_files = get_saved_file_paths(
-            repository["full_name"]
+        saved_paths = get_saved_file_paths(
+            repository_name
         )
 
         print(
             "Saved files:",
-            saved_files
+            saved_paths
         )
 
-        source_files = []
+        # -------------------------------------------------
+        # LOAD SOURCE FILES
+        # -------------------------------------------------
 
-        for file_path in saved_files:
-
-            content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                file_path,
-                repository["default_branch"]
-            )
-
-            if content is not None:
-
-                source_files.append({
-                    "path": file_path,
-                    "content": content,
-                    "categories": categorize_file(
-                        file_path
-                    )
-                })
+        source_files = load_source_files(
+            repository,
+            saved_paths
+        )
 
         print(
-            "Opening analysis.html..."
+            "Source files loaded:",
+            len(source_files)
         )
+
+        # -------------------------------------------------
+        # RENDER ANALYSIS PAGE
+        # -------------------------------------------------
 
         return render_template(
             "analysis.html",
             repository=repository,
-            files=files,
-            categorized_files=categorized_files,
+            files=files or [],
             source_files=source_files,
-            saved_files=saved_files,
             ai_analysis=None
         )
 
     except ValueError as error:
 
         print(
-            "ANALYZE VALUE ERROR:",
-            repr(error)
+            "❌ ANALYZE VALUE ERROR:",
+            error
         )
 
         return render_template(
@@ -242,39 +295,37 @@ def analyze():
 
     except Exception as error:
 
-        print("\n========================================")
-        print("❌ ANALYZE REPOSITORY FAILED")
-        print("========================================")
-
         print(
-            "ERROR TYPE:",
-            type(error).__name__
+            "❌ ANALYZE ERROR:",
+            type(error).__name__,
+            str(error)
         )
-
-        print(
-            "ERROR:",
-            repr(error)
-        )
-
-        print("========================================")
 
         return render_template(
             "index.html",
-            error=(
-                "Unable to analyze this repository: "
-                + str(error)
-            )
+            error="Unable to analyze this GitHub repository."
         )
+
+    finally:
+
+        db.session.remove()
 
 
 # =====================================================
 # SAVE SELECTED FILES
 # =====================================================
 
-@main.route("/save-files", methods=["POST"])
+@main.route(
+    "/save-files",
+    methods=["POST"]
+)
 def save_files():
 
-    repository = request.form.get(
+    print(
+        "\n🔥 GITORA /save-files ROUTE REACHED"
+    )
+
+    repository_name = request.form.get(
         "repository",
         ""
     ).strip()
@@ -283,212 +334,273 @@ def save_files():
         "selected_files"
     )
 
-    if not repository:
+    print(
+        "Repository:",
+        repository_name
+    )
 
-        return redirect(
-            url_for("main.home")
-        )
+    print(
+        "Selected files:",
+        selected_files
+    )
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
 
     try:
 
+        # -------------------------------------------------
+        # REMOVE OLD SELECTIONS
+        # -------------------------------------------------
+
         SavedFileSelection.query.filter_by(
-            repository=repository
-        ).delete(
-            synchronize_session=False
-        )
+            repository=repository_name
+        ).delete()
+
+        # -------------------------------------------------
+        # SAVE NEW SELECTIONS
+        # -------------------------------------------------
 
         for file_path in selected_files:
 
+            if not file_path:
+                continue
+
             db.session.add(
                 SavedFileSelection(
-                    repository=repository,
+                    repository=repository_name,
                     file_path=file_path
                 )
             )
 
         db.session.commit()
 
-        print(
-            "FILES SAVED:",
-            repository,
-            selected_files
+        # -------------------------------------------------
+        # INVALIDATE OLD AI CACHE
+        # -------------------------------------------------
+
+        AI_ANALYSIS_CACHE.pop(
+            repository_name,
+            None
         )
 
         # -------------------------------------------------
-        # If selected files changed, remove old AI cache.
+        # LOAD REPOSITORY AGAIN
         # -------------------------------------------------
-
-        if repository in AI_ANALYSIS_CACHE:
-
-            del AI_ANALYSIS_CACHE[repository]
-
-            print(
-                "OLD AI ANALYSIS CACHE CLEARED:",
-                repository
-            )
-
-    except Exception as error:
-
-        db.session.rollback()
-
-        print(
-            "SAVE FILE ERROR:",
-            repr(error)
-        )
-
-        return redirect(
-            url_for("main.home")
-        )
-
-    finally:
-
-        db.session.remove()
-
-    try:
-
-        repository_url = (
-            "https://github.com/"
-            + repository
-        )
-
-        repository_info = get_repository_info(
-            repository_url
-        )
-
-        files = get_repository_files(
-            repository_info["owner"],
-            repository_info["repo"],
-            repository_info["default_branch"]
-        )
-
-        categorized_files = []
-
-        for file in files:
-
-            categorized_files.append({
-                "path": file["path"],
-                "categories": categorize_file(
-                    file["path"]
-                )
-            })
-
-        source_files = []
-
-        for file_path in selected_files:
-
-            content = get_file_content(
-                repository_info["owner"],
-                repository_info["repo"],
-                file_path,
-                repository_info["default_branch"]
-            )
-
-            if content is not None:
-
-                source_files.append({
-                    "path": file_path,
-                    "content": content,
-                    "categories": categorize_file(
-                        file_path
-                    )
-                })
-
-        return render_template(
-            "analysis.html",
-            repository=repository_info,
-            files=files,
-            categorized_files=categorized_files,
-            source_files=source_files,
-            saved_files=selected_files,
-            ai_analysis=None
-        )
-
-    except Exception as error:
-
-        print(
-            "RETURN ANALYSIS ERROR:",
-            type(error).__name__,
-            repr(error)
-        )
-
-        return redirect(
-            url_for("main.home")
-        )
-
-    finally:
-
-        db.session.remove()
-
-
-# =====================================================
-# FULL AI ANALYSIS - GEMINI
-# =====================================================
-
-@main.route("/ai-analyze", methods=["POST"])
-def ai_analyze():
-
-    try:
-
-        repository_name = request.form.get(
-            "repository",
-            ""
-        ).strip()
-
-        if not repository_name:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Repository information is missing."
-            })
-
-        saved_files = get_saved_file_paths(
-            repository_name
-        )
-
-        if not saved_files:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Please select and save at least "
-                    "one repository file."
-            })
 
         repository = get_repository_info(
             "https://github.com/"
             + repository_name
         )
 
-        source_files = []
+        if not repository:
 
-        for file_path in saved_files:
+            return jsonify({
+                "success": False,
+                "error": "Unable to load repository."
+            }), 400
 
-            content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                file_path,
-                repository["default_branch"]
+        files = get_repository_files(
+            repository["owner"],
+            repository["repo"],
+            repository["default_branch"]
+        )
+
+        source_files = load_source_files(
+            repository,
+            selected_files
+        )
+
+        print(
+            "Saved successfully."
+        )
+
+        return render_template(
+            "analysis.html",
+            repository=repository,
+            files=files or [],
+            source_files=source_files,
+            ai_analysis=None
+        )
+
+    except Exception as error:
+
+        db.session.rollback()
+
+        print(
+            "❌ SAVE FILES ERROR:",
+            type(error).__name__,
+            str(error)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(error)
+        }), 500
+
+    finally:
+
+        db.session.remove()
+
+
+# =====================================================
+# FULL AI ANALYSIS
+# =====================================================
+
+@main.route(
+    "/ai-analyze",
+    methods=["POST"]
+)
+def ai_analyze():
+
+    print(
+        "\n🔥 GITORA /ai-analyze ROUTE REACHED"
+    )
+
+    repository_name = request.form.get(
+        "repository",
+        ""
+    ).strip()
+
+    print(
+        "Repository:",
+        repository_name
+    )
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
+
+    try:
+
+        # -------------------------------------------------
+        # CHECK BROWSER FILES
+        # -------------------------------------------------
+
+        selected_files = request.form.getlist(
+            "selected_files"
+        )
+
+        print(
+            "Files received directly from browser:",
+            selected_files
+        )
+
+        # -------------------------------------------------
+        # FALL BACK TO DATABASE
+        # -------------------------------------------------
+
+        if not selected_files:
+
+            print(
+                "⚠️ No files received from browser."
             )
 
-            if content is not None:
+            selected_files = get_saved_file_paths(
+                repository_name
+            )
 
-                source_files.append({
-                    "path": file_path,
-                    "content": content
-                })
+            print(
+                "Files loaded from database:",
+                selected_files
+            )
+
+        if not selected_files:
+
+            return jsonify({
+                "success": False,
+                "error": "Please select at least one file to analyze."
+            }), 400
+
+        # -------------------------------------------------
+        # CACHE CHECK
+        # -------------------------------------------------
+
+        cached_analysis = AI_ANALYSIS_CACHE.get(
+            repository_name
+        )
+
+        if is_valid_ai_analysis(
+            cached_analysis
+        ):
+
+            print(
+                "✅ USING CACHED AI ANALYSIS"
+            )
+
+            return jsonify({
+                "success": True,
+                "analysis": cached_analysis
+            })
+
+        # Remove invalid cached result.
+
+        if cached_analysis is not None:
+
+            print(
+                "⚠️ Removing invalid AI cache."
+            )
+
+            AI_ANALYSIS_CACHE.pop(
+                repository_name,
+                None
+            )
+
+        # -------------------------------------------------
+        # LOAD REPOSITORY
+        # -------------------------------------------------
+
+        print(
+            "Loading repository information..."
+        )
+
+        repository = get_repository_info(
+            "https://github.com/"
+            + repository_name
+        )
+
+        if not repository:
+
+            return jsonify({
+                "success": False,
+                "error": "Unable to load GitHub repository."
+            }), 400
+
+        # -------------------------------------------------
+        # LOAD SOURCE FILES
+        # -------------------------------------------------
+
+        source_files = load_source_files(
+            repository,
+            selected_files
+        )
+
+        print(
+            "Source files loaded:",
+            len(source_files)
+        )
 
         if not source_files:
 
             return jsonify({
                 "success": False,
-                "message":
-                    "Unable to load the selected files."
-            })
+                "error": "Unable to load the selected repository files."
+            }), 400
 
-        print("\n========================================")
-        print("🔥 GITORA FULL AI ANALYSIS")
-        print("========================================")
+        # -------------------------------------------------
+        # GEMINI
+        # -------------------------------------------------
+
+        print(
+            "\n🔥 SENDING REQUEST TO GEMINI"
+        )
 
         print(
             "Repository:",
@@ -500,28 +612,34 @@ def ai_analyze():
             len(source_files)
         )
 
-        print(
-            "Starting Gemini analysis..."
-        )
-
         result = analyze_repository(
             repository=repository,
             files=source_files
         )
 
-        if not isinstance(result, dict):
+        print(
+            "Gemini returned:",
+            type(result).__name__
+        )
+
+        if not is_valid_ai_analysis(
+            result
+        ):
+
+            print(
+                "❌ AI ANALYSIS FAILED"
+            )
 
             return jsonify({
                 "success": False,
-                "message":
-                    "Gitora AI returned an invalid response."
-            })
+                "error": (
+                    "Gemini could not analyze the repository "
+                    "right now. Please try again."
+                )
+            }), 503
 
         # -------------------------------------------------
-        # Store successful analysis.
-        #
-        # PDF generation will reuse this result instead
-        # of calling Gemini again.
+        # SAVE ONLY SUCCESSFUL ANALYSIS
         # -------------------------------------------------
 
         AI_ANALYSIS_CACHE[
@@ -529,52 +647,55 @@ def ai_analyze():
         ] = result
 
         print(
-            "AI ANALYSIS SAVED TO CACHE:",
-            repository_name
+            "✅ AI ANALYSIS SAVED TO CACHE"
         )
 
-        rebuild_options = result.get(
-            "rebuild_options",
-            []
+        print(
+            "Rebuild options:",
+            len(
+                result.get(
+                    "rebuild_options",
+                    []
+                )
+            )
         )
 
-        if not isinstance(
-            rebuild_options,
-            list
-        ):
-
-            rebuild_options = []
+        print(
+            "🔥 FULL AI ANALYSIS COMPLETED"
+        )
 
         return jsonify({
             "success": True,
-            "analysis": result,
-            "rebuild_options": rebuild_options
+            "analysis": result
         })
 
-    except Exception as error:
-
-        print("\n========================================")
-        print("❌ AI ANALYSIS ERROR")
-        print("========================================")
+    except ValueError as error:
 
         print(
-            "ERROR TYPE:",
-            type(error).__name__
+            "❌ AI ANALYSIS VALUE ERROR:",
+            error
         )
-
-        print(
-            "ERROR:",
-            repr(error)
-        )
-
-        print("========================================")
 
         return jsonify({
             "success": False,
-            "message":
-                "Gitora AI could not analyze the repository. "
-                "Check your GEMINI_API_KEY configuration."
-        })
+            "error": str(error)
+        }), 500
+
+    except Exception as error:
+
+        print(
+            "❌ AI ANALYSIS ERROR:",
+            type(error).__name__,
+            str(error)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": (
+                "Gemini could not analyze the repository "
+                "right now. Please try again."
+            )
+        }), 500
 
     finally:
 
@@ -582,283 +703,249 @@ def ai_analyze():
 
 
 # =====================================================
-# THREE WAYS TO REBUILD
+# REBUILD OPTIONS
 # =====================================================
 
-@main.route("/rebuild-options", methods=["POST"])
+@main.route(
+    "/rebuild-options",
+    methods=["POST"]
+)
 def rebuild_options():
+
+    print(
+        "\n🔥 GITORA /rebuild-options ROUTE REACHED"
+    )
+
+    repository_name = request.form.get(
+        "repository",
+        ""
+    ).strip()
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
 
     try:
 
-        repository_name = request.form.get(
-            "repository",
-            ""
-        ).strip()
+        cached_analysis = AI_ANALYSIS_CACHE.get(
+            repository_name
+        )
 
-        if not repository_name:
+        if is_valid_ai_analysis(
+            cached_analysis
+        ):
+
+            return jsonify({
+                "success": True,
+                "rebuild_options":
+                    cached_analysis.get(
+                        "rebuild_options",
+                        []
+                    )
+            })
+
+        if cached_analysis is not None:
+
+            AI_ANALYSIS_CACHE.pop(
+                repository_name,
+                None
+            )
+
+        # -------------------------------------------------
+        # LOAD SAVED FILES
+        # -------------------------------------------------
+
+        selected_files = get_saved_file_paths(
+            repository_name
+        )
+
+        if not selected_files:
 
             return jsonify({
                 "success": False,
-                "message":
-                    "Repository information is missing."
-            })
+                "error": "No saved files found."
+            }), 400
+
+        repository = get_repository_info(
+            "https://github.com/"
+            + repository_name
+        )
+
+        source_files = load_source_files(
+            repository,
+            selected_files
+        )
+
+        result = analyze_repository(
+            repository=repository,
+            files=source_files
+        )
+
+        if not is_valid_ai_analysis(
+            result
+        ):
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Gemini could not generate "
+                    "rebuild options right now."
+                )
+            }), 503
+
+        AI_ANALYSIS_CACHE[
+            repository_name
+        ] = result
+
+        return jsonify({
+            "success": True,
+            "rebuild_options":
+                result.get(
+                    "rebuild_options",
+                    []
+                )
+        })
+
+    except Exception as error:
+
+        print(
+            "❌ REBUILD OPTIONS ERROR:",
+            type(error).__name__,
+            str(error)
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(error)
+        }), 500
+
+    finally:
+
+        db.session.remove()
+
+
+# =====================================================
+# ANALYZE SINGLE FILE
+# =====================================================
+
+@main.route(
+    "/analyze-file",
+    methods=["POST"]
+)
+def analyze_file():
+
+    print(
+        "\n🔥 GITORA /analyze-file ROUTE REACHED"
+    )
+
+    repository_name = request.form.get(
+        "repository",
+        ""
+    ).strip()
+
+    file_path = request.form.get(
+        "file_path",
+        ""
+    ).strip()
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
+
+    if not file_path:
+
+        return jsonify({
+            "success": False,
+            "error": "File path is required."
+        }), 400
+
+    try:
 
         # -------------------------------------------------
-        # Reuse cached analysis if available.
+        # CHECK SAVED FILES
+        # -------------------------------------------------
+
+        saved_paths = get_saved_file_paths(
+            repository_name
+        )
+
+        if file_path not in saved_paths:
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Please save/select this file "
+                    "before analyzing it."
+                )
+            }), 400
+
+        # -------------------------------------------------
+        # CHECK FULL AI CACHE
         # -------------------------------------------------
 
         cached_analysis = AI_ANALYSIS_CACHE.get(
             repository_name
         )
 
-        if isinstance(
-            cached_analysis,
-            dict
+        if is_valid_ai_analysis(
+            cached_analysis
         ):
 
-            print(
-                "Using cached AI analysis for rebuild options."
-            )
-
-            options = cached_analysis.get(
-                "rebuild_options",
+            file_analysis = cached_analysis.get(
+                "file_analysis",
                 []
             )
 
-            if not isinstance(
-                options,
-                list
-            ):
+            for item in file_analysis:
 
-                options = []
+                if item.get("file") == file_path:
 
-            options = options[:3]
+                    return jsonify({
+                        "success": True,
+                        "analysis": item
+                    })
 
-            return jsonify({
-                "success": True,
-                "repository": repository_name,
-                "options": options,
-                "count": len(options)
-            })
-
-        saved_files = get_saved_file_paths(
-            repository_name
-        )
-
-        if not saved_files:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Please select and save at least "
-                    "one repository file first."
-            })
+        # -------------------------------------------------
+        # LOAD REPOSITORY
+        # -------------------------------------------------
 
         repository = get_repository_info(
             "https://github.com/"
             + repository_name
         )
 
-        source_files = []
+        if not repository:
 
-        for file_path in saved_files:
+            return jsonify({
+                "success": False,
+                "error": "Unable to load repository."
+            }), 400
 
-            content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                file_path,
-                repository["default_branch"]
-            )
+        # -------------------------------------------------
+        # LOAD FILES
+        # -------------------------------------------------
 
-            if content is not None:
-
-                source_files.append({
-                    "path": file_path,
-                    "content": content
-                })
+        source_files = load_source_files(
+            repository,
+            saved_paths
+        )
 
         if not source_files:
 
             return jsonify({
                 "success": False,
-                "message":
-                    "Unable to load the selected files."
-            })
+                "error": "Unable to load selected files."
+            }), 400
 
-        print(
-            "No cached analysis found."
-        )
-
-        print(
-            "Starting Gemini analysis for rebuild options..."
-        )
-
-        analysis = analyze_repository(
-            repository=repository,
-            files=source_files
-        )
-
-        if not isinstance(
-            analysis,
-            dict
-        ):
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Gitora AI returned an invalid analysis."
-            })
-
-        AI_ANALYSIS_CACHE[
-            repository_name
-        ] = analysis
-
-        options = analysis.get(
-            "rebuild_options",
-            []
-        )
-
-        if not isinstance(
-            options,
-            list
-        ):
-
-            options = []
-
-        options = options[:3]
-
-        return jsonify({
-            "success": True,
-            "repository":
-                repository.get(
-                    "full_name",
-                    repository_name
-                ),
-            "options": options,
-            "count": len(options)
-        })
-
-    except Exception as error:
-
-        print(
-            "REBUILD OPTIONS ERROR:",
-            type(error).__name__,
-            repr(error)
-        )
-
-        return jsonify({
-            "success": False,
-            "message":
-                "Gitora AI could not generate the "
-                "three rebuild approaches."
-        })
-
-    finally:
-
-        db.session.remove()
-
-
-# =====================================================
-# ANALYZE ONE FILE - GEMINI
-# =====================================================
-
-@main.route("/analyze-file", methods=["POST"])
-def analyze_file():
-
-    print("\n========================================")
-    print("🔥 GITORA INDIVIDUAL FILE ANALYSIS")
-    print("========================================")
-
-    try:
-
-        repository_name = request.form.get(
-            "repository",
-            ""
-        ).strip()
-
-        file_path = request.form.get(
-            "file_path",
-            ""
-        ).strip()
-
-        print(
-            "Repository:",
-            repository_name
-        )
-
-        print(
-            "File:",
-            file_path
-        )
-
-        if not repository_name:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Repository information is missing."
-            })
-
-        if not file_path:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "File information is missing."
-            })
-
-        saved_files = get_saved_file_paths(
-            repository_name
-        )
-
-        print(
-            "Saved files:",
-            saved_files
-        )
-
-        if file_path not in saved_files:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "This file has not been saved."
-            })
-
-        repository = get_repository_info(
-            "https://github.com/"
-            + repository_name
-        )
-
-        source_files = []
-
-        for saved_path in saved_files:
-
-            saved_content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                saved_path,
-                repository["default_branch"]
-            )
-
-            if saved_content is not None:
-
-                source_files.append({
-                    "path": saved_path,
-                    "content": saved_content
-                })
-
-        if not source_files:
-
-            return jsonify({
-                "success": False,
-                "message":
-                    "Unable to load the selected files."
-            })
-
-        print(
-            "Sending file to Gemini:",
-            file_path
-        )
+        # -------------------------------------------------
+        # AI
+        # -------------------------------------------------
 
         result = analyze_single_file(
             repository=repository,
@@ -873,18 +960,8 @@ def analyze_file():
 
             return jsonify({
                 "success": False,
-                "message":
-                    "Gitora AI returned an invalid file analysis."
-            })
-
-        print(
-            "Individual file analysis completed."
-        )
-
-        print(
-            "AI fields:",
-            list(result.keys())
-        )
+                "error": "AI could not analyze this file."
+            }), 503
 
         return jsonify({
             "success": True,
@@ -894,33 +971,15 @@ def analyze_file():
     except Exception as error:
 
         print(
-            "========================================"
-        )
-
-        print(
-            "❌ SINGLE FILE ANALYSIS ERROR"
-        )
-
-        print(
-            "ERROR TYPE:",
-            type(error).__name__
-        )
-
-        print(
-            "ERROR:",
-            repr(error)
-        )
-
-        print(
-            "========================================"
+            "❌ SINGLE FILE ANALYSIS ERROR:",
+            type(error).__name__,
+            str(error)
         )
 
         return jsonify({
             "success": False,
-            "message":
-                "Gitora AI could not analyze this file. "
-                "Check your GEMINI_API_KEY configuration."
-        })
+            "error": str(error)
+        }), 500
 
     finally:
 
@@ -928,83 +987,79 @@ def analyze_file():
 
 
 # =====================================================
-# ASK GITORA AI - GEMINI
+# ASK AI
 # =====================================================
 
-@main.route("/ask-ai", methods=["POST"])
+@main.route(
+    "/ask-ai",
+    methods=["POST"]
+)
 def ask_ai():
+
+    print(
+        "\n🔥 GITORA /ask-ai ROUTE REACHED"
+    )
+
+    repository_name = request.form.get(
+        "repository",
+        ""
+    ).strip()
+
+    question = request.form.get(
+        "question",
+        ""
+    ).strip()
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
+
+    if not question:
+
+        return jsonify({
+            "success": False,
+            "error": "Please enter a question."
+        }), 400
 
     try:
 
-        repository_name = request.form.get(
-            "repository",
-            ""
-        ).strip()
-
-        question = request.form.get(
-            "question",
-            ""
-        ).strip()
-
-        if not repository_name:
-
-            return jsonify({
-                "success": False,
-                "answer":
-                    "Repository information is missing."
-            })
-
-        if not question:
-
-            return jsonify({
-                "success": False,
-                "answer":
-                    "Please enter a question."
-            })
-
-        saved_files = get_saved_file_paths(
+        selected_files = get_saved_file_paths(
             repository_name
         )
 
-        if not saved_files:
+        if not selected_files:
 
             return jsonify({
                 "success": False,
-                "answer":
-                    "Please select and save at least "
-                    "one repository file first."
-            })
+                "error": "No saved files found."
+            }), 400
 
         repository = get_repository_info(
             "https://github.com/"
             + repository_name
         )
 
-        source_files = []
+        if not repository:
 
-        for file_path in saved_files:
+            return jsonify({
+                "success": False,
+                "error": "Unable to load repository."
+            }), 400
 
-            content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                file_path,
-                repository["default_branch"]
-            )
-
-            if content is not None:
-
-                source_files.append({
-                    "path": file_path,
-                    "content": content
-                })
+        source_files = load_source_files(
+            repository,
+            selected_files
+        )
 
         if not source_files:
 
             return jsonify({
                 "success": False,
-                "answer":
-                    "Unable to load the selected files."
-            })
+                "error": "Unable to load selected files."
+            }), 400
 
         answer = answer_repository_question(
             question=question,
@@ -1020,17 +1075,15 @@ def ask_ai():
     except Exception as error:
 
         print(
-            "AI QUESTION ERROR:",
+            "❌ ASK AI ERROR:",
             type(error).__name__,
-            repr(error)
+            str(error)
         )
 
         return jsonify({
             "success": False,
-            "answer":
-                "Gitora AI could not process the question. "
-                "Check your GEMINI_API_KEY configuration."
-        })
+            "error": str(error)
+        }), 500
 
     finally:
 
@@ -1038,326 +1091,196 @@ def ask_ai():
 
 
 # =====================================================
-# DOWNLOAD COMPLETE PDF REPORT
+# DOWNLOAD PDF REPORT
 # =====================================================
 
-@main.route("/download-report", methods=["POST"])
+@main.route(
+    "/download-report",
+    methods=["POST"]
+)
 def download_report():
 
-    print("\n========================================")
-    print("🔥 GITORA PDF REPORT REQUEST")
-    print("========================================")
+    print(
+        "\n🔥 GITORA DOWNLOAD REPORT"
+    )
+
+    repository_name = request.form.get(
+        "repository",
+        ""
+    ).strip()
+
+    print(
+        "Repository:",
+        repository_name
+    )
+
+    if not repository_name:
+
+        return jsonify({
+            "success": False,
+            "error": "Repository is required."
+        }), 400
 
     try:
 
-        repository_name = request.form.get(
-            "repository",
-            ""
-        ).strip()
-
-        print(
-            "Repository:",
-            repository_name
-        )
-
-        if not repository_name:
-
-            return (
-                "Repository information is missing.",
-                400
-            )
-
-        saved_files = get_saved_file_paths(
-            repository_name
-        )
-
-        print(
-            "Saved files:",
-            saved_files
-        )
-
-        if not saved_files:
-
-            return (
-                "Please select and save at least "
-                "one file before generating the report.",
-                400
-            )
-
-        # =================================================
-        # GET REPOSITORY
-        # =================================================
-
-        print(
-            "Loading repository information..."
-        )
+        # -------------------------------------------------
+        # LOAD REPOSITORY
+        # -------------------------------------------------
 
         repository = get_repository_info(
             "https://github.com/"
             + repository_name
         )
 
-        print(
-            "Repository loaded:",
-            repository.get("full_name")
+        if not repository:
+
+            return jsonify({
+                "success": False,
+                "error": "Unable to load repository."
+            }), 400
+
+        # -------------------------------------------------
+        # LOAD SAVED FILES
+        # -------------------------------------------------
+
+        selected_files = get_saved_file_paths(
+            repository_name
         )
 
-        # =================================================
-        # LOAD SOURCE FILES
-        # =================================================
+        if not selected_files:
 
-        source_files = []
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Please select and save files "
+                    "before generating the PDF."
+                )
+            }), 400
 
-        for file_path in saved_files:
-
-            print(
-                "Loading PDF source file:",
-                file_path
-            )
-
-            content = get_file_content(
-                repository["owner"],
-                repository["repo"],
-                file_path,
-                repository["default_branch"]
-            )
-
-            if content is not None:
-
-                source_files.append({
-                    "path": file_path,
-                    "content": content,
-                    "categories": categorize_file(
-                        file_path
-                    )
-                })
-
-        print(
-            "PDF source files loaded:",
-            len(source_files)
+        source_files = load_source_files(
+            repository,
+            selected_files
         )
 
         if not source_files:
 
-            return (
-                "Unable to load the selected files.",
-                400
-            )
+            return jsonify({
+                "success": False,
+                "error": "Unable to load selected files."
+            }), 400
 
-        # =================================================
-        # GET AI ANALYSIS
-        # =================================================
-        #
-        # FIRST:
-        # Use the analysis already generated by the
-        # Analyze With Gitora AI button.
-        #
-        # This avoids another Gemini request.
-        #
-        # SECOND:
-        # If no cached analysis exists, try Gemini once.
-        #
-        # THIRD:
-        # If Gemini is unavailable, generate the PDF with
-        # a safe fallback analysis instead of returning 500.
-        # =================================================
+        # -------------------------------------------------
+        # GET AI ANALYSIS FROM CACHE
+        # -------------------------------------------------
 
-        ai_analysis = AI_ANALYSIS_CACHE.get(
+        analysis = AI_ANALYSIS_CACHE.get(
             repository_name
         )
 
-        if isinstance(
-            ai_analysis,
-            dict
+        if is_valid_ai_analysis(
+            analysis
         ):
 
             print(
-                "✅ USING CACHED AI ANALYSIS FOR PDF"
+                "✅ Using cached AI analysis for PDF."
             )
 
         else:
 
-            print(
-                "⚠️ NO CACHED AI ANALYSIS FOUND"
+            # Remove invalid cache.
+
+            AI_ANALYSIS_CACHE.pop(
+                repository_name,
+                None
             )
 
             print(
-                "Starting Gemini analysis for PDF..."
-            )
-
-            try:
-
-                ai_analysis = analyze_repository(
-                    repository=repository,
-                    files=source_files
-                )
-
-            except Exception as ai_error:
-
-                print(
-                    "PDF GEMINI ERROR:",
-                    type(ai_error).__name__,
-                    repr(ai_error)
-                )
-
-                ai_analysis = None
-
-        # =================================================
-        # VALIDATE AI ANALYSIS
-        # =================================================
-
-        if not isinstance(
-            ai_analysis,
-            dict
-        ):
-
-            print(
-                "⚠️ AI analysis unavailable."
+                "⚠️ No valid AI analysis found."
             )
 
             print(
-                "Using safe PDF fallback data."
+                "🔥 Generating AI analysis for PDF..."
             )
 
-            ai_analysis = {
-                "project_summary":
-                    "AI analysis was unavailable. "
-                    "The report contains the selected "
-                    "source code and available repository information.",
-
-                "technology_stack": [],
-
-                "architecture":
-                    "AI analysis was unavailable.",
-
-                "dependencies": [],
-
-                "database":
-                    "AI analysis was unavailable.",
-
-                "authentication":
-                    "AI analysis was unavailable.",
-
-                "important_requests": [],
-
-                "file_analysis": [],
-
-                "rebuild_options": [],
-
-                "estimated_development_time":
-                    "Not identified.",
-
-                "routing": [],
-
-                "run_instructions": [],
-
-                "folder_structure":
-                    "AI analysis was unavailable."
-            }
-
-        else:
-
-            print(
-                "AI analysis available for PDF."
+            analysis = analyze_repository(
+                repository=repository,
+                files=source_files
             )
 
-            # -------------------------------------------------
-            # Save it so another PDF request does not call
-            # Gemini again.
-            # -------------------------------------------------
+            if not is_valid_ai_analysis(
+                analysis
+            ):
+
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        "Gemini could not analyze the "
+                        "repository, so the PDF cannot "
+                        "be generated right now."
+                    )
+                }), 503
 
             AI_ANALYSIS_CACHE[
                 repository_name
-            ] = ai_analysis
+            ] = analysis
 
-        # =================================================
+        # -------------------------------------------------
         # GENERATE PDF
-        # =================================================
+        # -------------------------------------------------
 
         print(
-            "Generating PDF..."
+            "🔥 Generating repository PDF..."
         )
 
         pdf_buffer = generate_repository_pdf(
             repository=repository,
             source_files=source_files,
-            ai_analysis=ai_analysis
+            ai_analysis=analysis
         )
 
-        print(
-            "PDF service returned:",
-            type(pdf_buffer).__name__
-        )
+        if not pdf_buffer:
 
-        if pdf_buffer is None:
-
-            raise RuntimeError(
-                "PDF service returned no data."
+            raise ValueError(
+                "PDF generator returned no data."
             )
 
-        # =================================================
-        # RESET BUFFER
-        # =================================================
-
-        try:
-
-            pdf_buffer.seek(0)
-
-        except Exception as seek_error:
-
-            print(
-                "PDF BUFFER SEEK ERROR:",
-                repr(seek_error)
-            )
-
-        # =================================================
-        # FILE NAME
-        # =================================================
+        # -------------------------------------------------
+        # SEND PDF
+        # -------------------------------------------------
 
         filename = (
-            repository.get(
-                "repo",
-                "repository"
-            )
+            repository["name"]
             + "_Gitora_Report.pdf"
         )
 
         print(
-            "PDF filename:",
+            "✅ PDF GENERATED:",
             filename
         )
 
-        print(
-            "========================================"
-        )
-
-        print(
-            "✅ PDF GENERATED SUCCESSFULLY"
-        )
-
-        print(
-            "========================================"
-        )
-
-        # =================================================
-        # SEND PDF
-        # =================================================
-
         return send_file(
             pdf_buffer,
-            mimetype="application/pdf",
             as_attachment=True,
-            download_name=filename
+            download_name=filename,
+            mimetype="application/pdf"
         )
+
+    except ValueError as error:
+
+        print(
+            "❌ DOWNLOAD REPORT VALUE ERROR:",
+            error
+        )
+
+        return jsonify({
+            "success": False,
+            "error": str(error)
+        }), 500
 
     except Exception as error:
 
         print(
-            "\n========================================"
-        )
-
-        print(
-            "❌ GITORA PDF GENERATION FAILED"
+            "\n❌ DOWNLOAD REPORT ERROR"
         )
 
         print(
@@ -1370,25 +1293,14 @@ def download_report():
             repr(error)
         )
 
-        print(
-            "========================================"
-        )
-
-        return (
-            "Unable to generate the PDF report. "
-            "Please try again.",
-            500
-        )
+        return jsonify({
+            "success": False,
+            "error": (
+                "Unable to generate the PDF report."
+            )
+        }), 500
 
     finally:
 
-        try:
-
-            db.session.remove()
-
-        except Exception as error:
-
-            print(
-                "FINAL DATABASE CLEANUP ERROR:",
-                repr(error)
-            )
+        db.session.remove()
+        

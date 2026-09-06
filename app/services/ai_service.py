@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import time
 
 from dotenv import load_dotenv
 
@@ -18,10 +19,36 @@ MODEL = os.getenv(
     "gemini-3.6-flash"
 )
 
-GEMINI_URL = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{MODEL}:generateContent"
-)
+# Gemini models to try.
+#
+# The configured model is always tried first.
+# If it returns 503, Gitora automatically tries
+# the next model.
+#
+# These are currently valid Gemini Flash model IDs.
+GEMINI_MODELS = []
+
+for model_name in [
+    MODEL,
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite"
+]:
+    if model_name not in GEMINI_MODELS:
+        GEMINI_MODELS.append(model_name)
+
+
+def get_gemini_url(model_name):
+    """
+    Build Gemini generateContent URL for a model.
+    """
+
+    return (
+        "https://generativelanguage.googleapis.com/"
+        f"v1beta/models/{model_name}:generateContent"
+    )
 
 
 # ============================================================
@@ -623,131 +650,328 @@ def call_gemini_json(prompt):
     """
     Send a prompt to Gemini and return parsed JSON.
 
-    Returns None if the API call fails.
+    If Gemini returns 503, Gitora automatically tries
+    the next available Gemini model.
+
+    429 quota/rate-limit errors are NOT endlessly retried.
     """
 
     if not GEMINI_API_KEY:
-        print(
-            "GEMINI_API_KEY is missing."
-        )
+        print()
+        print("========================================")
+        print("❌ GEMINI_API_KEY IS MISSING")
+        print("========================================")
+        print()
+
         return None
 
-    try:
+    import requests
 
-        import requests
-
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-
-            "generationConfig": {
-                "temperature": 0.2,
-                "responseMimeType": "application/json"
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
             }
+        ],
+
+        "generationConfig": {
+            "temperature": 0.2,
+            "responseMimeType": "application/json"
         }
+    }
 
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": GEMINI_API_KEY
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+    }
 
-        response = requests.post(
-            GEMINI_URL,
-            headers=headers,
-            json=payload,
-            timeout=120
-        )
+    # --------------------------------------------------------
+    # TRY EACH GEMINI MODEL
+    # --------------------------------------------------------
 
+    for index, model_name in enumerate(GEMINI_MODELS):
+
+        url = get_gemini_url(model_name)
+
+        print()
+        print("========================================")
+        print("🔥 GEMINI AI REQUEST")
+        print("========================================")
         print(
-            "Gemini status:",
-            response.status_code
+            "Model:",
+            model_name
         )
-
-        if response.status_code != 200:
-            print(
-                "Gemini API error:",
-                response.text[:2000]
-            )
-            return None
+        print(
+            "Attempt:",
+            index + 1,
+            "/",
+            len(GEMINI_MODELS)
+        )
+        print()
 
         try:
-            response_data = response.json()
-        except Exception:
-            print(
-                "Gemini returned invalid HTTP JSON."
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=120
             )
-            return None
 
-        candidates = response_data.get(
-            "candidates",
-            []
-        )
-
-        if not candidates:
             print(
-                "Gemini response contains no candidates."
+                "Gemini status:",
+                response.status_code
             )
-            return None
 
-        candidate = candidates[0]
+            # =================================================
+            # SUCCESS
+            # =================================================
 
-        content = candidate.get(
-            "content",
-            {}
-        )
+            if response.status_code == 200:
 
-        parts = content.get(
-            "parts",
-            []
-        )
+                try:
 
-        if not parts:
+                    response_data = response.json()
+
+                except Exception:
+
+                    print(
+                        "❌ Gemini returned invalid HTTP JSON."
+                    )
+
+                    continue
+
+                candidates = response_data.get(
+                    "candidates",
+                    []
+                )
+
+                if not candidates:
+
+                    print(
+                        "❌ Gemini response contains no candidates."
+                    )
+
+                    continue
+
+                candidate = candidates[0]
+
+                content = candidate.get(
+                    "content",
+                    {}
+                )
+
+                parts = content.get(
+                    "parts",
+                    []
+                )
+
+                if not parts:
+
+                    print(
+                        "❌ Gemini response contains no parts."
+                    )
+
+                    continue
+
+                text = parts[0].get(
+                    "text",
+                    ""
+                )
+
+                if not text:
+
+                    print(
+                        "❌ Gemini response text is empty."
+                    )
+
+                    continue
+
+                parsed = extract_json(text)
+
+                if parsed is None:
+
+                    print(
+                        "❌ Could not extract JSON from Gemini response."
+                    )
+
+                    print(
+                        "Gemini text:",
+                        text[:3000]
+                    )
+
+                    continue
+
+                print()
+                print("========================================")
+                print("✅ GEMINI AI SUCCESS")
+                print("========================================")
+                print(
+                    "Working model:",
+                    model_name
+                )
+                print()
+
+                return parsed
+
+            # =================================================
+            # 503 - TEMPORARY UNAVAILABLE
+            # =================================================
+
+            elif response.status_code == 503:
+
+                print()
+                print(
+                    "⚠️ GEMINI MODEL TEMPORARILY UNAVAILABLE"
+                )
+                print(
+                    "Model:",
+                    model_name
+                )
+                print(
+                    "Trying another Gemini model..."
+                )
+                print()
+
+                # Short delay before next model
+                time.sleep(2)
+
+                continue
+
+            # =================================================
+            # 429 - QUOTA / RATE LIMIT
+            # =================================================
+
+            elif response.status_code == 429:
+
+                print()
+                print("========================================")
+                print("❌ GEMINI QUOTA / RATE LIMIT")
+                print("========================================")
+                print(
+                    response.text[:3000]
+                )
+                print()
+
+                return None
+
+            # =================================================
+            # 400 - BAD REQUEST
+            # =================================================
+
+            elif response.status_code == 400:
+
+                print()
+                print("========================================")
+                print("❌ GEMINI BAD REQUEST")
+                print("========================================")
+                print(
+                    response.text[:3000]
+                )
+                print()
+
+                return None
+
+            # =================================================
+            # 401 / 403 - KEY OR PERMISSION
+            # =================================================
+
+            elif response.status_code in (401, 403):
+
+                print()
+                print("========================================")
+                print("❌ GEMINI API KEY / PERMISSION ERROR")
+                print("========================================")
+                print(
+                    response.text[:3000]
+                )
+                print()
+
+                return None
+
+            # =================================================
+            # OTHER ERROR
+            # =================================================
+
+            else:
+
+                print()
+                print(
+                    "⚠️ Gemini API error:"
+                )
+
+                print(
+                    response.text[:3000]
+                )
+
+                print(
+                    "Trying next model..."
+                )
+
+                continue
+
+        except requests.exceptions.Timeout:
+
+            print()
             print(
-                "Gemini response contains no parts."
-            )
-            return None
-
-        text = parts[0].get(
-            "text",
-            ""
-        )
-
-        if not text:
-            print(
-                "Gemini response text is empty."
-            )
-            return None
-
-        parsed = extract_json(text)
-
-        if parsed is None:
-            print(
-                "Could not extract JSON from Gemini response."
+                "⚠️ Gemini request timed out."
             )
             print(
-                "Gemini text:",
-                text[:3000]
+                "Trying next model..."
             )
-            return None
+            print()
 
-        return parsed
+            continue
 
-    except Exception as e:
+        except requests.exceptions.RequestException as e:
 
-        print(
-            "Gemini API exception:",
-            type(e).__name__,
-            str(e)
-        )
+            print()
+            print(
+                "⚠️ Gemini network exception:"
+            )
+            print(
+                type(e).__name__,
+                str(e)
+            )
+            print(
+                "Trying next model..."
+            )
+            print()
 
-        return None
+            continue
+
+        except Exception as e:
+
+            print()
+            print(
+                "⚠️ Gemini API exception:"
+            )
+            print(
+                type(e).__name__,
+                str(e)
+            )
+            print(
+                "Trying next model..."
+            )
+            print()
+
+            continue
+
+    # ========================================================
+    # ALL MODELS FAILED
+    # ========================================================
+
+    print()
+    print("========================================")
+    print("❌ ALL GEMINI MODELS FAILED")
+    print("========================================")
+    print()
+
+    return None
 
 
 # ============================================================
@@ -876,7 +1100,6 @@ Explain the actual functionality and consequence.
 Only analyze files that were supplied.
 """
 
-
     data = call_gemini_json(prompt)
 
     if data is None:
@@ -935,9 +1158,6 @@ def analyze_single_file(
             file_path=selected_file,
             message="Selected file was not found in the supplied repository."
         )
-
-    if selected_content is None:
-        selected_content = ""
 
     selected_content = str(
         selected_content
@@ -1113,6 +1333,9 @@ def answer_repository_question(
 ):
     """
     Answer a user's question about the repository.
+
+    Uses the same Gemini model fallback system as
+    the main repository analysis.
     """
 
     question = safe_value(
@@ -1172,110 +1395,254 @@ Return a normal human-readable answer.
             "Please add GEMINI_API_KEY to the Render environment variables."
         )
 
-    try:
+    import requests
 
-        import requests
-
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-
-            "generationConfig": {
-                "temperature": 0.3
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
             }
+        ],
+
+        "generationConfig": {
+            "temperature": 0.3
         }
+    }
 
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": GEMINI_API_KEY
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+    }
 
-        response = requests.post(
-            GEMINI_URL,
-            headers=headers,
-            json=payload,
-            timeout=120
-        )
+    # --------------------------------------------------------
+    # TRY ALL GEMINI MODELS FOR CHAT
+    # --------------------------------------------------------
 
+    for index, model_name in enumerate(GEMINI_MODELS):
+
+        print()
+        print("----------------------------------------")
+        print("🔥 GEMINI QUESTION")
+        print("----------------------------------------")
         print(
-            "Gemini question status:",
-            response.status_code
+            "Model:",
+            model_name
         )
-
-        if response.status_code != 200:
-
-            print(
-                "Gemini question error:",
-                response.text[:2000]
-            )
-
-            return (
-                "Gemini could not answer the question right now."
-            )
+        print(
+            "Attempt:",
+            index + 1,
+            "/",
+            len(GEMINI_MODELS)
+        )
 
         try:
-            response_data = response.json()
-        except Exception:
 
-            return (
-                "Gemini returned an invalid response."
+            response = requests.post(
+                get_gemini_url(model_name),
+                headers=headers,
+                json=payload,
+                timeout=120
             )
 
-        candidates = response_data.get(
-            "candidates",
-            []
-        )
-
-        if not candidates:
-            return (
-                "Gemini returned no answer."
+            print(
+                "Gemini question status:",
+                response.status_code
             )
 
-        parts = (
-            candidates[0]
-            .get("content", {})
-            .get("parts", [])
-        )
+            # ------------------------------------------------
+            # SUCCESS
+            # ------------------------------------------------
 
-        if not parts:
-            return (
-                "Gemini returned an empty answer."
+            if response.status_code == 200:
+
+                try:
+
+                    response_data = response.json()
+
+                except Exception:
+
+                    print(
+                        "Gemini returned invalid response JSON."
+                    )
+
+                    continue
+
+                candidates = response_data.get(
+                    "candidates",
+                    []
+                )
+
+                if not candidates:
+
+                    print(
+                        "Gemini returned no candidates."
+                    )
+
+                    continue
+
+                parts = (
+                    candidates[0]
+                    .get("content", {})
+                    .get("parts", [])
+                )
+
+                if not parts:
+
+                    print(
+                        "Gemini returned no answer parts."
+                    )
+
+                    continue
+
+                answer = parts[0].get(
+                    "text",
+                    ""
+                )
+
+                answer = str(
+                    answer or ""
+                ).strip()
+
+                if not answer:
+
+                    print(
+                        "Gemini returned an empty answer."
+                    )
+
+                    continue
+
+                print()
+                print(
+                    "✅ GEMINI QUESTION SUCCESS"
+                )
+                print(
+                    "Working model:",
+                    model_name
+                )
+                print()
+
+                return answer
+
+            # ------------------------------------------------
+            # 503
+            # ------------------------------------------------
+
+            elif response.status_code == 503:
+
+                print(
+                    "⚠️ Gemini model unavailable."
+                )
+
+                print(
+                    "Trying next model..."
+                )
+
+                time.sleep(2)
+
+                continue
+
+            # ------------------------------------------------
+            # 429
+            # ------------------------------------------------
+
+            elif response.status_code == 429:
+
+                print()
+                print(
+                    "❌ Gemini quota/rate limit reached."
+                )
+
+                print(
+                    response.text[:3000]
+                )
+
+                return (
+                    "Gemini quota/rate limit reached. "
+                    "Please try again later."
+                )
+
+            # ------------------------------------------------
+            # 400
+            # ------------------------------------------------
+
+            elif response.status_code == 400:
+
+                print(
+                    "❌ Gemini bad request."
+                )
+
+                print(
+                    response.text[:3000]
+                )
+
+                return (
+                    "Gemini rejected the request."
+                )
+
+            # ------------------------------------------------
+            # 401 / 403
+            # ------------------------------------------------
+
+            elif response.status_code in (401, 403):
+
+                print(
+                    "❌ Gemini API key or permission error."
+                )
+
+                print(
+                    response.text[:3000]
+                )
+
+                return (
+                    "Gemini API key or permission error. "
+                    "Please check GEMINI_API_KEY."
+                )
+
+            else:
+
+                print(
+                    "⚠️ Gemini question error:",
+                    response.text[:3000]
+                )
+
+                continue
+
+        except requests.exceptions.Timeout:
+
+            print(
+                "⚠️ Gemini question timed out."
             )
 
-        answer = parts[0].get(
-            "text",
-            ""
-        )
+            continue
 
-        answer = str(
-            answer or ""
-        ).strip()
+        except requests.exceptions.RequestException as e:
 
-        if not answer:
-            return (
-                "Gemini returned an empty answer."
+            print(
+                "⚠️ Gemini question network error:",
+                type(e).__name__,
+                str(e)
             )
 
-        return answer
+            continue
 
-    except Exception as e:
+        except Exception as e:
 
-        print(
-            "Gemini question exception:",
-            type(e).__name__,
-            str(e)
-        )
+            print(
+                "⚠️ Gemini question exception:",
+                type(e).__name__,
+                str(e)
+            )
 
-        return (
-            "An error occurred while asking Gemini."
-        )
+            continue
+
+    return (
+        "Gemini could not answer the question right now. "
+        "All available Gemini models were unavailable."
+    )
 
 
 # ============================================================
