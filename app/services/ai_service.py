@@ -678,9 +678,14 @@ def call_gemini_json(prompt):
         MODEL
     )
 
+    # Only two models are attempted.
+    # This prevents Render/Gunicorn from waiting
+    # through too many slow requests.
+    models_to_try = GEMINI_MODELS[:2]
+
     print(
         "Models to try:",
-        GEMINI_MODELS
+        models_to_try
     )
 
     print("========================================")
@@ -715,7 +720,7 @@ def call_gemini_json(prompt):
     }
 
     for index, model_name in enumerate(
-        GEMINI_MODELS
+        models_to_try
     ):
 
         url = get_gemini_url(
@@ -734,12 +739,13 @@ def call_gemini_json(prompt):
             "Attempt:",
             index + 1,
             "/",
-            len(GEMINI_MODELS)
+            len(models_to_try)
         )
         print(
             "URL:",
             url
         )
+        print("========================================")
 
         try:
 
@@ -751,7 +757,10 @@ def call_gemini_json(prompt):
 
                 json=payload,
 
-                timeout=120
+                # IMPORTANT:
+                # Gunicorn was killing the worker while
+                # the old request waited for 120 seconds.
+                timeout=25
             )
 
             print(
@@ -884,10 +893,14 @@ def call_gemini_json(prompt):
                 )
 
                 if index < len(
-                    GEMINI_MODELS
+                    models_to_try
                 ) - 1:
 
-                    time.sleep(2)
+                    print(
+                        "⏳ Trying next model in 1 second..."
+                    )
+
+                    time.sleep(1)
 
                 continue
 
@@ -960,8 +973,42 @@ def call_gemini_json(prompt):
         except requests.exceptions.Timeout:
 
             print(
-                "⚠️ Gemini request timed out."
+                "⏰ GEMINI REQUEST TIMEOUT"
             )
+
+            print(
+                "Gemini did not respond within 25 seconds."
+            )
+
+            if index < len(
+                models_to_try
+            ) - 1:
+
+                print(
+                    "⏳ Trying next Gemini model..."
+                )
+
+                time.sleep(1)
+
+            continue
+
+        except requests.exceptions.ConnectionError as error:
+
+            print(
+                "❌ GEMINI CONNECTION ERROR:",
+                type(error).__name__,
+                str(error)
+            )
+
+            if index < len(
+                models_to_try
+            ) - 1:
+
+                print(
+                    "⏳ Trying next Gemini model..."
+                )
+
+                time.sleep(1)
 
             continue
 
@@ -1376,8 +1423,11 @@ Return normal human-readable text.
             GEMINI_API_KEY
     }
 
+    # Keep Ask AI protected from long Render requests too.
+    models_to_try = GEMINI_MODELS[:2]
+
     for index, model_name in enumerate(
-        GEMINI_MODELS
+        models_to_try
     ):
 
         print()
@@ -1387,6 +1437,12 @@ Return normal human-readable text.
         print(
             "Model:",
             model_name
+        )
+        print(
+            "Attempt:",
+            index + 1,
+            "/",
+            len(models_to_try)
         )
 
         try:
@@ -1401,7 +1457,7 @@ Return normal human-readable text.
 
                 json=payload,
 
-                timeout=120
+                timeout=25
             )
 
             print(
@@ -1459,7 +1515,16 @@ Return normal human-readable text.
 
             if response.status_code == 503:
 
-                time.sleep(2)
+                print(
+                    "⚠️ Gemini temporarily unavailable."
+                )
+
+                if index < len(
+                    models_to_try
+                ) - 1:
+
+                    time.sleep(1)
+
                 continue
 
             if response.status_code == 429:
@@ -1492,8 +1557,29 @@ Return normal human-readable text.
         except requests.exceptions.Timeout:
 
             print(
-                "⚠️ Gemini question timed out."
+                "⏰ Gemini question timed out "
+                "after 25 seconds."
             )
+
+            if index < len(
+                models_to_try
+            ) - 1:
+
+                time.sleep(1)
+
+        except requests.exceptions.ConnectionError as error:
+
+            print(
+                "❌ Gemini question connection error:",
+                type(error).__name__,
+                str(error)
+            )
+
+            if index < len(
+                models_to_try
+            ) - 1:
+
+                time.sleep(1)
 
         except requests.exceptions.RequestException as error:
 
