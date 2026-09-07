@@ -21,16 +21,18 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # ============================================================
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_API_KEY = os.getenv(
+    "GEMINI_API_KEY",
+    ""
+).strip()
 
-# Current production model.
-# Can be overridden from Render environment variables.
 MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.8-flash"
 ).strip()
 
-# Safe fallback models.
+
+# Keep fallback models.
 GEMINI_MODELS = []
 
 for model_name in [
@@ -41,8 +43,14 @@ for model_name in [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
 ]:
-    if model_name and model_name not in GEMINI_MODELS:
-        GEMINI_MODELS.append(model_name)
+
+    if (
+        model_name
+        and model_name not in GEMINI_MODELS
+    ):
+        GEMINI_MODELS.append(
+            model_name
+        )
 
 
 # ============================================================
@@ -53,21 +61,18 @@ _client = None
 
 
 def get_gemini_client():
-    """
-    Create the Gemini client lazily.
-
-    This prevents application startup from failing if the
-    environment variable is temporarily unavailable.
-    """
 
     global _client
 
     if not GEMINI_API_KEY:
+
         raise RuntimeError(
-            "GEMINI_API_KEY is missing from the environment."
+            "GEMINI_API_KEY is missing "
+            "from the environment."
         )
 
     if _client is None:
+
         _client = genai.Client(
             api_key=GEMINI_API_KEY,
             http_options={
@@ -82,27 +87,45 @@ def get_gemini_client():
 # BASIC HELPERS
 # ============================================================
 
-def safe_value(value, default=""):
+def safe_value(
+    value,
+    default=""
+):
+
     if value is None:
         return default
 
-    if isinstance(value, str):
+    if isinstance(
+        value,
+        str
+    ):
         return value.strip()
 
     return value
 
 
 def normalize_list(value):
+
     if value is None:
         return []
 
-    if isinstance(value, list):
+    if isinstance(
+        value,
+        list
+    ):
         return value
 
-    if isinstance(value, tuple):
+    if isinstance(
+        value,
+        tuple
+    ):
         return list(value)
 
-    if isinstance(value, str):
+    if isinstance(
+        value,
+        str
+    ):
+
         value = value.strip()
 
         if not value:
@@ -118,17 +141,12 @@ def normalize_list(value):
 # ============================================================
 
 def extract_json(text):
-    """
-    Extract JSON even if a model accidentally surrounds it
-    with markdown fences or explanatory text.
-    """
 
     if not text:
         return None
 
-    text = text.strip()
+    text = str(text).strip()
 
-    # Remove markdown fences.
     text = re.sub(
         r"^```(?:json)?\s*",
         "",
@@ -145,21 +163,34 @@ def extract_json(text):
     text = text.strip()
 
     try:
+
         return json.loads(text)
+
     except Exception:
+
         pass
 
-    # Try to locate an object.
     start = text.find("{")
     end = text.rfind("}")
 
-    if start != -1 and end != -1 and end > start:
+    if (
+        start != -1
+        and end != -1
+        and end > start
+    ):
 
-        candidate = text[start:end + 1]
+        candidate = (
+            text[start:end + 1]
+        )
 
         try:
-            return json.loads(candidate)
+
+            return json.loads(
+                candidate
+            )
+
         except Exception:
+
             pass
 
     return None
@@ -170,6 +201,7 @@ def extract_json(text):
 # ============================================================
 
 def empty_file_analysis():
+
     return {
         "file": "",
         "summary": "",
@@ -185,6 +217,7 @@ def empty_file_analysis():
 
 
 def empty_analysis():
+
     return {
         "project_summary": "",
         "technology_stack": [],
@@ -210,7 +243,10 @@ def normalize_file_analysis(data):
 
     result = empty_file_analysis()
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict
+    ):
         return result
 
     result["file"] = safe_value(
@@ -232,29 +268,45 @@ def normalize_file_analysis(data):
         or data.get("why")
     )
 
-    result["what_breaks_without_it"] = safe_value(
-        data.get("what_breaks_without_it")
+    result[
+        "what_breaks_without_it"
+    ] = safe_value(
+        data.get(
+            "what_breaks_without_it"
+        )
         or data.get("without_it")
     )
 
-    result["important_functions"] = normalize_list(
-        data.get("important_functions")
+    result[
+        "important_functions"
+    ] = normalize_list(
+        data.get(
+            "important_functions"
+        )
         or data.get("functions")
     )
 
-    result["dependencies"] = normalize_list(
+    result[
+        "dependencies"
+    ] = normalize_list(
         data.get("dependencies")
     )
 
-    result["connections"] = normalize_list(
+    result[
+        "connections"
+    ] = normalize_list(
         data.get("connections")
     )
 
-    result["issues"] = normalize_list(
+    result[
+        "issues"
+    ] = normalize_list(
         data.get("issues")
     )
 
-    result["improvements"] = normalize_list(
+    result[
+        "improvements"
+    ] = normalize_list(
         data.get("improvements")
     )
 
@@ -265,72 +317,120 @@ def normalize_analysis(data):
 
     result = empty_analysis()
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict
+    ):
         return result
 
-    result["project_summary"] = safe_value(
+    result[
+        "project_summary"
+    ] = safe_value(
         data.get("project_summary")
         or data.get("summary")
     )
 
-    result["technology_stack"] = normalize_list(
+    result[
+        "technology_stack"
+    ] = normalize_list(
         data.get("technology_stack")
         or data.get("tech_stack")
     )
 
-    result["architecture"] = (
-        data.get("architecture")
-        if isinstance(data.get("architecture"), dict)
-        else {}
+    architecture = data.get(
+        "architecture"
     )
 
-    result["dependencies"] = normalize_list(
+    if isinstance(
+        architecture,
+        dict
+    ):
+        result[
+            "architecture"
+        ] = architecture
+
+    result[
+        "dependencies"
+    ] = normalize_list(
         data.get("dependencies")
     )
 
-    result["database"] = normalize_list(
+    result[
+        "database"
+    ] = normalize_list(
         data.get("database")
     )
 
-    result["authentication"] = normalize_list(
+    result[
+        "authentication"
+    ] = normalize_list(
         data.get("authentication")
     )
 
-    result["important_requests"] = normalize_list(
-        data.get("important_requests")
+    result[
+        "important_requests"
+    ] = normalize_list(
+        data.get(
+            "important_requests"
+        )
         or data.get("api_endpoints")
     )
 
-    result["routing"] = normalize_list(
+    result[
+        "routing"
+    ] = normalize_list(
         data.get("routing")
         or data.get("routes")
     )
 
-    result["run_instructions"] = normalize_list(
+    result[
+        "run_instructions"
+    ] = normalize_list(
         data.get("run_instructions")
         or data.get("run")
     )
 
-    result["estimated_development_time"] = safe_value(
-        data.get("estimated_development_time")
-        or data.get("estimated_time")
+    result[
+        "estimated_development_time"
+    ] = safe_value(
+        data.get(
+            "estimated_development_time"
+        )
+        or data.get(
+            "estimated_time"
+        )
     )
 
-    result["folder_structure"] = normalize_list(
+    result[
+        "folder_structure"
+    ] = normalize_list(
         data.get("folder_structure")
     )
 
-    raw_files = data.get("file_analysis", [])
+    raw_files = data.get(
+        "file_analysis",
+        []
+    )
 
-    if isinstance(raw_files, list):
+    if isinstance(
+        raw_files,
+        list
+    ):
 
-        result["file_analysis"] = [
+        result[
+            "file_analysis"
+        ] = [
             normalize_file_analysis(item)
             for item in raw_files
-            if isinstance(item, dict)
+            if isinstance(
+                item,
+                dict
+            )
         ]
 
-    result["rebuild_options"] = normalize_list(
+    result[
+        "rebuild_options"
+    ] = normalize_list(
         data.get("rebuild_options")
     )
 
@@ -341,25 +441,39 @@ def normalize_analysis(data):
 # REPOSITORY CONTEXT
 # ============================================================
 
-def build_repository_context(files):
+def build_repository_context(
+    files
+):
 
     blocks = []
 
     for file in files or []:
 
-        path = file.get("path", "")
+        if not isinstance(
+            file,
+            dict
+        ):
+            continue
+
+        path = file.get(
+            "path",
+            ""
+        )
 
         if not path:
             continue
 
-        content = file.get("content", "")
+        content = file.get(
+            "content",
+            ""
+        )
 
         if content is None:
             content = ""
 
         content = str(content)
 
-        # Prevent huge prompts.
+        # Keep prompts within a safe size.
         content = content[:30000]
 
         blocks.append(
@@ -372,15 +486,19 @@ FILE: {path}
 """
         )
 
-    return "\n".join(blocks)
+    return "\n".join(
+        blocks
+    )
 
 
 # ============================================================
-# JSON SCHEMA
+# FULL REPOSITORY JSON SCHEMA
 # ============================================================
 
 REPOSITORY_SCHEMA = {
+
     "type": "object",
+
     "properties": {
 
         "project_summary": {
@@ -452,49 +570,63 @@ REPOSITORY_SCHEMA = {
         },
 
         "file_analysis": {
+
             "type": "array",
+
             "items": {
+
                 "type": "object",
+
                 "properties": {
+
                     "file": {
                         "type": "string"
                     },
+
                     "summary": {
                         "type": "string"
                     },
+
                     "purpose": {
                         "type": "string"
                     },
+
                     "why_it_exists": {
                         "type": "string"
                     },
+
                     "what_breaks_without_it": {
                         "type": "string"
                     },
+
                     "important_functions": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
+
                     "dependencies": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
+
                     "connections": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
+
                     "issues": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
+
                     "improvements": {
                         "type": "array",
                         "items": {
@@ -502,6 +634,7 @@ REPOSITORY_SCHEMA = {
                         }
                     }
                 },
+
                 "required": [
                     "file",
                     "summary",
@@ -539,49 +672,160 @@ REPOSITORY_SCHEMA = {
 
 
 # ============================================================
-# GEMINI INTERACTIONS CALL
+# REBUILD JSON SCHEMA
 # ============================================================
 
-def call_gemini_json(prompt):
+REBUILD_SCHEMA = {
+
+    "type": "object",
+
+    "properties": {
+
+        "rebuild_options": {
+
+            "type": "array",
+
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+
+    "required": [
+        "rebuild_options"
+    ]
+}
+
+
+# ============================================================
+# SINGLE FILE SCHEMA
+# ============================================================
+
+FILE_SCHEMA = {
+
+    "type": "object",
+
+    "properties": {
+
+        "file": {
+            "type": "string"
+        },
+
+        "summary": {
+            "type": "string"
+        },
+
+        "purpose": {
+            "type": "string"
+        },
+
+        "why_it_exists": {
+            "type": "string"
+        },
+
+        "what_breaks_without_it": {
+            "type": "string"
+        },
+
+        "important_functions": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
+        "dependencies": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
+        "connections": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
+        "issues": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
+        "improvements": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+
+    "required": [
+        "file",
+        "summary",
+        "purpose",
+        "why_it_exists",
+        "what_breaks_without_it"
+    ]
+}
+
+
+# ============================================================
+# GEMINI JSON REQUEST
+# ============================================================
+
+def call_gemini_json(
+    prompt,
+    schema=REPOSITORY_SCHEMA,
+    max_output_tokens=12000
+):
 
     if not GEMINI_API_KEY:
 
         raise RuntimeError(
-            "GEMINI_API_KEY is not configured on the server."
+            "GEMINI_API_KEY is not configured "
+            "on the server."
         )
 
     client = get_gemini_client()
 
     last_error = None
 
+    models_to_try = GEMINI_MODELS[:3]
+
     for attempt, model_name in enumerate(
-        GEMINI_MODELS[:3],
+        models_to_try,
         start=1
     ):
 
         try:
 
             logger.info(
-                "Gemini request: model=%s attempt=%s",
+                "Gemini request: "
+                "model=%s attempt=%s",
                 model_name,
                 attempt
             )
 
-            interaction = client.interactions.create(
-
-                model=model_name,
-
-                input=prompt,
-
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": REPOSITORY_SCHEMA
-                },
-
-                generation_config={
-                    "max_output_tokens": 12000
-                }
+            interaction = (
+                client.interactions.create(
+                    model=model_name,
+                    input=prompt,
+                    response_format={
+                        "type": "text",
+                        "mime_type": (
+                            "application/json"
+                        ),
+                        "schema": schema
+                    },
+                    generation_config={
+                        "max_output_tokens":
+                            max_output_tokens
+                    }
+                )
             )
 
             text = getattr(
@@ -591,19 +835,25 @@ def call_gemini_json(prompt):
             )
 
             if not text:
+
                 raise RuntimeError(
-                    "Gemini returned an empty response."
+                    "Gemini returned "
+                    "an empty response."
                 )
 
-            data = extract_json(text)
+            data = extract_json(
+                text
+            )
 
             if data is None:
+
                 raise RuntimeError(
                     "Gemini returned invalid JSON."
                 )
 
             logger.info(
-                "Gemini request succeeded with %s",
+                "Gemini request succeeded "
+                "with %s",
                 model_name
             )
 
@@ -614,13 +864,14 @@ def call_gemini_json(prompt):
             last_error = exc
 
             logger.exception(
-                "Gemini request failed with model %s",
+                "Gemini request failed "
+                "with model %s",
                 model_name
             )
 
-            # Do not retry configuration/authentication
-            # failures against another model.
-            message = str(exc).lower()
+            message = str(
+                exc
+            ).lower()
 
             permanent_error_terms = [
                 "api key",
@@ -637,11 +888,16 @@ def call_gemini_json(prompt):
             ):
                 break
 
-            if attempt < min(3, len(GEMINI_MODELS)):
+            if (
+                attempt
+                < len(models_to_try)
+            ):
+
                 time.sleep(1)
 
     raise RuntimeError(
-        f"Gemini AI request failed: {last_error}"
+        "Gemini AI request failed: "
+        f"{last_error}"
     )
 
 
@@ -649,7 +905,10 @@ def call_gemini_json(prompt):
 # FULL REPOSITORY ANALYSIS
 # ============================================================
 
-def analyze_repository(repository, files):
+def analyze_repository(
+    repository,
+    files
+):
 
     repository_name = (
         repository.get("full_name")
@@ -657,17 +916,24 @@ def analyze_repository(repository, files):
         or "Unknown repository"
     )
 
-    context = build_repository_context(files)
+    context = (
+        build_repository_context(
+            files
+        )
+    )
 
     prompt = f"""
-You are Gitora, an expert software repository analyst.
+You are Gitora, an expert software
+repository analyst.
 
-Analyze the repository below using ONLY the supplied repository
-information and source files.
+Analyze the repository below using ONLY
+the supplied repository information and
+source files.
 
-Do not invent files, routes, APIs, databases, authentication,
-dependencies, or functionality that are not supported by the
-source.
+Do not invent files, routes, APIs,
+databases, authentication, dependencies,
+or functionality that is not supported
+by the supplied source.
 
 Repository:
 {repository_name}
@@ -679,7 +945,7 @@ Repository language:
 {repository.get("language", "")}
 
 Repository URL:
-{repository.get("html_url", "")}
+{repository.get("url", "")}
 
 SOURCE FILES:
 
@@ -715,9 +981,15 @@ Also identify:
 Return ONLY JSON matching the requested schema.
 """
 
-    raw = call_gemini_json(prompt)
+    raw = call_gemini_json(
+        prompt,
+        schema=REPOSITORY_SCHEMA,
+        max_output_tokens=12000
+    )
 
-    return normalize_analysis(raw)
+    return normalize_analysis(
+        raw
+    )
 
 
 # ============================================================
@@ -730,7 +1002,9 @@ def analyze_single_file(
     content
 ):
 
-    content = (content or "")[:50000]
+    content = (
+        content or ""
+    )[:50000]
 
     prompt = f"""
 You are Gitora, an expert software engineer.
@@ -758,129 +1032,17 @@ Explain:
 - issues
 - improvements
 
-Return JSON matching this structure:
-
-{{
-  "file": "{file_path}",
-  "summary": "",
-  "purpose": "",
-  "why_it_exists": "",
-  "what_breaks_without_it": "",
-  "important_functions": [],
-  "dependencies": [],
-  "connections": [],
-  "issues": [],
-  "improvements": []
-}}
+Return ONLY JSON matching the requested schema.
 """
 
-    client = get_gemini_client()
+    raw = call_gemini_json(
+        prompt,
+        schema=FILE_SCHEMA,
+        max_output_tokens=6000
+    )
 
-    last_error = None
-
-    for model_name in GEMINI_MODELS[:3]:
-
-        try:
-
-            interaction = client.interactions.create(
-
-                model=model_name,
-
-                input=prompt,
-
-                response_format={
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "file": {
-                                "type": "string"
-                            },
-                            "summary": {
-                                "type": "string"
-                            },
-                            "purpose": {
-                                "type": "string"
-                            },
-                            "why_it_exists": {
-                                "type": "string"
-                            },
-                            "what_breaks_without_it": {
-                                "type": "string"
-                            },
-                            "important_functions": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "dependencies": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "connections": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "issues": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            },
-                            "improvements": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                }
-                            }
-                        },
-                        "required": [
-                            "file",
-                            "summary",
-                            "purpose",
-                            "why_it_exists",
-                            "what_breaks_without_it"
-                        ]
-                    }
-                },
-
-                generation_config={
-                    "max_output_tokens": 6000
-                }
-            )
-
-            text = getattr(
-                interaction,
-                "output_text",
-                None
-            )
-
-            data = extract_json(text)
-
-            if data is None:
-                raise RuntimeError(
-                    "Invalid JSON returned for file analysis."
-                )
-
-            return normalize_file_analysis(data)
-
-        except Exception as exc:
-
-            last_error = exc
-
-            logger.exception(
-                "Single-file Gemini analysis failed: %s",
-                file_path
-            )
-
-    raise RuntimeError(
-        f"Gemini file analysis failed: {last_error}"
+    return normalize_file_analysis(
+        raw
     )
 
 
@@ -894,11 +1056,16 @@ def answer_repository_question(
     question
 ):
 
-    context = build_repository_context(files)
+    context = (
+        build_repository_context(
+            files
+        )
+    )
 
     prompt = f"""
-You are Gitora, an AI assistant specialized in understanding
-software repositories.
+You are Gitora, an AI assistant
+specialized in understanding software
+repositories.
 
 Repository:
 {repository.get("full_name", "")}
@@ -916,7 +1083,8 @@ Answer using the repository source above.
 Rules:
 
 - Do not invent implementation details.
-- If the source does not contain enough information, say so.
+- If the source does not contain enough
+  information, say so.
 - Mention relevant filenames when useful.
 - Give practical technical answers.
 """
@@ -929,15 +1097,14 @@ Rules:
 
         try:
 
-            interaction = client.interactions.create(
-
-                model=model_name,
-
-                input=prompt,
-
-                generation_config={
-                    "max_output_tokens": 5000
-                }
+            interaction = (
+                client.interactions.create(
+                    model=model_name,
+                    input=prompt,
+                    generation_config={
+                        "max_output_tokens": 5000
+                    }
+                )
             )
 
             answer = getattr(
@@ -947,6 +1114,7 @@ Rules:
             )
 
             if answer:
+
                 return answer.strip()
 
             raise RuntimeError(
@@ -962,7 +1130,8 @@ Rules:
             )
 
     raise RuntimeError(
-        f"Gitora AI question failed: {last_error}"
+        "Gitora AI question failed: "
+        f"{last_error}"
     )
 
 
@@ -975,22 +1144,42 @@ def generate_rebuild_strategies(
     files
 ):
 
-    context = build_repository_context(files)
+    context = (
+        build_repository_context(
+            files
+        )
+    )
 
     prompt = f"""
-You are Gitora.
+You are Gitora, an expert software
+architect.
 
-Analyze this repository and propose three realistic ways to
-rebuild the same project.
+Analyze the supplied repository and
+propose exactly three realistic ways
+to rebuild the same project.
 
 Repository:
 {repository.get("full_name", "")}
 
-Source:
+SOURCE:
 
 {context}
 
-Return JSON:
+The three options should be practical
+and meaningfully different.
+
+For example, they may differ in:
+
+- programming language
+- framework
+- database
+- architecture
+- deployment approach
+
+Do not invent functionality that is not
+supported by the supplied repository.
+
+Return ONLY JSON in this format:
 
 {{
     "rebuild_options": [
@@ -1001,12 +1190,25 @@ Return JSON:
 }}
 """
 
-    raw = call_gemini_json(prompt)
+    raw = call_gemini_json(
+        prompt,
+        schema=REBUILD_SCHEMA,
+        max_output_tokens=3000
+    )
+
+    options = []
+
+    if isinstance(
+        raw,
+        dict
+    ):
+
+        options = normalize_list(
+            raw.get(
+                "rebuild_options"
+            )
+        )
 
     return {
-        "rebuild_options": normalize_list(
-            raw.get("rebuild_options")
-            if isinstance(raw, dict)
-            else []
-        )
+        "rebuild_options": options
     }

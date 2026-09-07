@@ -18,7 +18,7 @@ from app import db
 from app.models import SavedFileSelection
 
 from app.services.github_service import (
-    get_repository,
+    get_repository_info,
     get_repository_files,
     get_file_content
 )
@@ -51,84 +51,140 @@ AI_ANALYSIS_CACHE = {}
 
 
 # ============================================================
-# HELPER - NORMALIZE REPOSITORY
-# ============================================================
-
-def normalize_repository(repository):
-    """
-    Convert repository information into the format expected
-    by the Gitora application.
-    """
-
-    if not repository:
-        return {}
-
-    if isinstance(repository, dict):
-        return repository
-
-    return {}
-
-
-# ============================================================
-# HELPER - REPOSITORY IDENTIFICATION
+# REPOSITORY HELPERS
 # ============================================================
 
 def get_repository_identifier(repository):
     """
-    Return a stable identifier for the repository.
+    Return the stable database/cache identifier:
+    owner/repository
     """
 
-    if not repository:
+    if not isinstance(repository, dict):
         return ""
 
+    full_name = repository.get("full_name")
+
+    if full_name:
+        return str(full_name).strip()
+
+    owner = repository.get("owner", "")
+    repo = repository.get("repo", "")
+
+    if isinstance(owner, dict):
+        owner = owner.get("login", "")
+
+    if owner and repo:
+        return f"{owner}/{repo}"
+
+    name = repository.get("name", "")
+
+    return str(name).strip()
+
+
+def parse_repository_input(repository_value):
+    """
+    Accept either:
+
+    https://github.com/owner/repository
+    owner/repository
+
+    and return:
+
+    owner, repository
+    """
+
+    value = (repository_value or "").strip()
+
+    if not value:
+        return None, None
+
+    # --------------------------------------------------------
+    # Full GitHub URL
+    # --------------------------------------------------------
+
+    if "github.com" in value.lower():
+
+        parsed = urlparse(value)
+
+        parts = [
+            part.strip()
+            for part in parsed.path.split("/")
+            if part.strip()
+        ]
+
+    # --------------------------------------------------------
+    # owner/repository
+    # --------------------------------------------------------
+
+    else:
+
+        parts = [
+            part.strip()
+            for part in value.split("/")
+            if part.strip()
+        ]
+
+    if len(parts) < 2:
+        return None, None
+
+    owner = parts[0]
+    repo = parts[1]
+
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+
+    return owner, repo
+
+
+def load_repository(repository_value):
+    """
+    Load repository information from either a GitHub URL
+    or owner/repository.
+    """
+
+    owner, repo = parse_repository_input(
+        repository_value
+    )
+
+    if not owner or not repo:
+        return None
+
+    repository_url = (
+        f"https://github.com/{owner}/{repo}"
+    )
+
+    return get_repository_info(
+        repository_url
+    )
+
+
+def get_repository_owner(repository):
+    owner = repository.get("owner", "")
+
+    if isinstance(owner, dict):
+        return owner.get("login", "")
+
+    return owner or ""
+
+
+def get_repository_name(repository):
     return (
-        repository.get("full_name")
-        or repository.get("html_url")
+        repository.get("repo")
         or repository.get("name")
         or ""
     )
 
 
-# ============================================================
-# HELPER - VALIDATE AI ANALYSIS
-# ============================================================
-
-def is_valid_ai_analysis(analysis):
-
-    if not isinstance(analysis, dict):
-        return False
-
-    failure_values = [
-        "unable to connect ai service",
-        "unable to connect to ai service",
-        "gemini could not analyze the repository",
-        "gemini ai request failed",
-        "ai service unavailable",
-        "ai analysis failed"
-    ]
-
-    for value in analysis.values():
-
-        if isinstance(value, str):
-
-            lower_value = value.lower()
-
-            for failure in failure_values:
-
-                if failure in lower_value:
-                    return False
-
-    # At least one meaningful field should exist.
-    return bool(
-        analysis.get("project_summary")
-        or analysis.get("technology_stack")
-        or analysis.get("file_analysis")
-        or analysis.get("architecture")
+def get_repository_branch(repository):
+    return (
+        repository.get("default_branch")
+        or "main"
     )
 
 
 # ============================================================
-# HELPER - SAVED FILE PATHS
+# SAVED FILE HELPERS
 # ============================================================
 
 def get_saved_file_paths(repository_name):
@@ -140,7 +196,9 @@ def get_saved_file_paths(repository_name):
 
         saved = (
             SavedFileSelection.query
-            .filter_by(repository=repository_name)
+            .filter_by(
+                repository=repository_name
+            )
             .all()
         )
 
@@ -148,46 +206,48 @@ def get_saved_file_paths(repository_name):
 
         for item in saved:
 
-            path = getattr(item, "file_path", None)
-
-            if not path:
-                path = getattr(item, "path", None)
+            path = getattr(
+                item,
+                "file_path",
+                None
+            )
 
             if path:
                 paths.append(path)
 
         return paths
 
-    except Exception:
+    except Exception as exc:
+
+        print(
+            f"⚠️ DATABASE READ ERROR: {exc}",
+            flush=True
+        )
 
         return []
 
-
-# ============================================================
-# HELPER - LOAD SOURCE FILES
-# ============================================================
 
 def load_source_files(repository, file_paths):
 
     source_files = []
 
-    if not repository:
+    if not isinstance(repository, dict):
         return source_files
 
-    owner = repository.get("owner", {})
-
-    if isinstance(owner, dict):
-        owner = owner.get("login", "")
-
-    repo_name = (
-        repository.get("name")
-        or ""
+    owner = get_repository_owner(
+        repository
     )
 
-    branch = (
-        repository.get("default_branch")
-        or "main"
+    repo_name = get_repository_name(
+        repository
     )
+
+    branch = get_repository_branch(
+        repository
+    )
+
+    if not owner or not repo_name:
+        return source_files
 
     for path in file_paths or []:
 
@@ -209,14 +269,14 @@ def load_source_files(repository, file_paths):
             })
 
             print(
-                f"GITHUB FILE LOADED: {path}",
+                f"✅ GITHUB FILE LOADED: {path}",
                 flush=True
             )
 
         except Exception as exc:
 
             print(
-                f"⚠️ Failed loading file {path}: {exc}",
+                f"⚠️ FAILED LOADING FILE {path}: {exc}",
                 flush=True
             )
 
@@ -224,36 +284,27 @@ def load_source_files(repository, file_paths):
 
 
 # ============================================================
-# HELPER - GET REPOSITORY FROM URL
+# AI VALIDATION
 # ============================================================
 
-def parse_github_url(repository_url):
+def is_valid_ai_analysis(analysis):
 
-    repository_url = (
-        repository_url or ""
-    ).strip()
+    if not isinstance(analysis, dict):
+        return False
 
-    if not repository_url:
-        return None, None
+    if analysis.get("project_summary"):
+        return True
 
-    parsed = urlparse(repository_url)
+    if analysis.get("technology_stack"):
+        return True
 
-    path_parts = [
-        part
-        for part in parsed.path.split("/")
-        if part
-    ]
+    if analysis.get("file_analysis"):
+        return True
 
-    if len(path_parts) < 2:
-        return None, None
+    if analysis.get("architecture"):
+        return True
 
-    owner = path_parts[0]
-    repo = path_parts[1]
-
-    if repo.endswith(".git"):
-        repo = repo[:-4]
-
-    return owner, repo
+    return False
 
 
 # ============================================================
@@ -272,7 +323,10 @@ def index():
 # ANALYZE REPOSITORY PAGE
 # ============================================================
 
-@main.route("/analyze", methods=["GET", "POST"])
+@main.route(
+    "/analyze",
+    methods=["GET", "POST"]
+)
 def analyze():
 
     print(
@@ -297,10 +351,10 @@ def analyze():
     try:
 
         # ----------------------------------------------------
-        # LOAD REPOSITORY
+        # REPOSITORY
         # ----------------------------------------------------
 
-        repository = get_repository(
+        repository = get_repository_info(
             repository_url
         )
 
@@ -308,25 +362,37 @@ def analyze():
 
             return render_template(
                 "index.html",
-                error="Unable to load GitHub repository."
+                error=(
+                    "Unable to load GitHub repository."
+                )
             )
-
-        repository = normalize_repository(
-            repository
-        )
 
         print(
             f"Repository loaded: {repository}",
             flush=True
         )
 
-        repository_name = get_repository_identifier(
-            repository
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
 
         # ----------------------------------------------------
-        # LOAD FILE TREE
+        # FILE TREE
         # ----------------------------------------------------
+
+        owner = get_repository_owner(
+            repository
+        )
+
+        repo_name = get_repository_name(
+            repository
+        )
+
+        branch = get_repository_branch(
+            repository
+        )
 
         print(
             "Loading repository files...",
@@ -334,7 +400,9 @@ def analyze():
         )
 
         files = get_repository_files(
-            repository
+            owner,
+            repo_name,
+            branch
         )
 
         if files is None:
@@ -349,8 +417,10 @@ def analyze():
         # SAVED FILES
         # ----------------------------------------------------
 
-        saved_file_paths = get_saved_file_paths(
-            repository_name
+        saved_file_paths = (
+            get_saved_file_paths(
+                repository_name
+            )
         )
 
         print(
@@ -359,7 +429,7 @@ def analyze():
         )
 
         # ----------------------------------------------------
-        # LOAD SOURCE FILES
+        # SOURCE FILES
         # ----------------------------------------------------
 
         source_files = load_source_files(
@@ -368,7 +438,8 @@ def analyze():
         )
 
         print(
-            f"Source files loaded: {len(source_files)}",
+            f"Source files loaded: "
+            f"{len(source_files)}",
             flush=True
         )
 
@@ -389,7 +460,9 @@ def analyze():
 
         return render_template(
             "index.html",
-            error=f"Unable to analyze repository: {exc}"
+            error=(
+                f"Unable to analyze repository: {exc}"
+            )
         )
 
 
@@ -397,7 +470,10 @@ def analyze():
 # SAVE SELECTED FILES
 # ============================================================
 
-@main.route("/save-files", methods=["POST"])
+@main.route(
+    "/save-files",
+    methods=["POST"]
+)
 def save_files():
 
     print(
@@ -407,37 +483,24 @@ def save_files():
 
     try:
 
-        repository_name = (
-            request.form.get("repository")
-            or request.form.get("repository_name")
-            or request.form.get("repo")
-            or ""
-        ).strip()
-
-        repository_url = (
-            request.form.get("repository_url")
-            or ""
-        ).strip()
-
         # ----------------------------------------------------
-        # JSON REQUEST SUPPORT
+        # READ REQUEST
         # ----------------------------------------------------
 
         if request.is_json:
 
-            data = request.get_json(
-                silent=True
-            ) or {}
-
-            repository_name = (
-                data.get("repository")
-                or data.get("repository_name")
-                or repository_name
+            data = (
+                request.get_json(
+                    silent=True
+                )
+                or {}
             )
 
-            repository_url = (
+            repository_value = (
                 data.get("repository_url")
-                or repository_url
+                or data.get("repo_url")
+                or data.get("repository")
+                or ""
             )
 
             selected_files = (
@@ -448,19 +511,57 @@ def save_files():
 
         else:
 
-            selected_files = (
-                request.form.getlist("files")
-                or request.form.getlist("selected_files")
+            repository_value = (
+                request.form.get("repository_url")
+                or request.form.get("repo_url")
+                or request.form.get("repository")
+                or request.form.get("url")
+                or ""
             )
 
+            selected_files = (
+                request.form.getlist("files")
+                or request.form.getlist(
+                    "selected_files"
+                )
+            )
+
+        repository_value = (
+            repository_value or ""
+        ).strip()
+
         print(
-            f"Repository: {repository_name}",
+            f"Repository input: {repository_value}",
             flush=True
         )
 
         print(
             f"Selected files: {selected_files}",
             flush=True
+        )
+
+        # ----------------------------------------------------
+        # LOAD REPOSITORY
+        # ----------------------------------------------------
+
+        repository = load_repository(
+            repository_value
+        )
+
+        if not repository:
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Unable to identify the "
+                    "GitHub repository."
+                )
+            }), 400
+
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
 
         # ----------------------------------------------------
@@ -472,8 +573,10 @@ def save_files():
         ).delete()
 
         # ----------------------------------------------------
-        # SAVE NEW SELECTIONS
+        # SAVE NEW FILES
         # ----------------------------------------------------
+
+        cleaned_files = []
 
         for path in selected_files:
 
@@ -482,17 +585,22 @@ def save_files():
             if not path:
                 continue
 
-            item = SavedFileSelection(
-                repository=repository_name,
-                file_path=path
-            )
+            if path in cleaned_files:
+                continue
 
-            db.session.add(item)
+            cleaned_files.append(path)
+
+            db.session.add(
+                SavedFileSelection(
+                    repository=repository_name,
+                    file_path=path
+                )
+            )
 
         db.session.commit()
 
         # ----------------------------------------------------
-        # CLEAR AI CACHE
+        # CLEAR CACHE
         # ----------------------------------------------------
 
         AI_ANALYSIS_CACHE.pop(
@@ -501,78 +609,37 @@ def save_files():
         )
 
         print(
-            "Saved successfully.",
+            "✅ Saved successfully.",
             flush=True
         )
 
         # ----------------------------------------------------
-        # JSON RESPONSE
+        # JSON
         # ----------------------------------------------------
 
         if request.is_json:
 
             return jsonify({
                 "success": True,
-                "files": selected_files
+                "repository": repository_name,
+                "files": cleaned_files
             })
 
         # ----------------------------------------------------
         # RELOAD ANALYSIS PAGE
         # ----------------------------------------------------
 
-        if not repository_url:
+        repository_url = (
+            repository.get("url")
+            or f"https://github.com/"
+            f"{repository_name}"
+        )
 
-            repository_url = (
-                request.form.get("url")
-                or request.form.get("repo_url")
-                or ""
-            ).strip()
-
-        if repository_url:
-
-            return redirect(
-                url_for(
-                    "main.analyze",
-                    repository_url=repository_url
-                )
+        return redirect(
+            url_for(
+                "main.analyze",
+                repository_url=repository_url
             )
-
-        # If URL is unavailable, render through repository name
-        # where possible.
-
-        repository = {
-            "full_name": repository_name,
-            "name": repository_name.split("/")[-1]
-            if "/" in repository_name
-            else repository_name,
-            "owner": {
-                "login": repository_name.split("/")[0]
-                if "/" in repository_name
-                else ""
-            },
-            "default_branch": "main"
-        }
-
-        files = get_repository_files(
-            repository
-        ) or []
-
-        saved_paths = get_saved_file_paths(
-            repository_name
-        )
-
-        source_files = load_source_files(
-            repository,
-            saved_paths
-        )
-
-        return render_template(
-            "analysis.html",
-            repository=repository,
-            files=files,
-            saved_files=saved_paths,
-            source_files=source_files,
-            ai_analysis=None
         )
 
     except Exception as exc:
@@ -599,7 +666,10 @@ def save_files():
 # AI FULL REPOSITORY ANALYSIS
 # ============================================================
 
-@main.route("/ai-analyze", methods=["POST"])
+@main.route(
+    "/ai-analyze",
+    methods=["POST"]
+)
 def ai_analyze():
 
     print(
@@ -616,22 +686,64 @@ def ai_analyze():
             or {}
         )
 
+        repository_value = (
+            data.get("repository_url")
+            or data.get("repo_url")
+            or data.get("repository")
+            or ""
+        )
+
+        repository = None
+
         # ----------------------------------------------------
         # REPOSITORY
         # ----------------------------------------------------
 
-        repository = data.get(
-            "repository"
+        if isinstance(
+            repository_value,
+            dict
+        ):
+
+            repository = repository_value
+
+        else:
+
+            repository = load_repository(
+                repository_value
+            )
+
+        if not repository:
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Repository information "
+                    "is missing."
+                )
+            }), 400
+
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
 
-        repository_url = (
-            data.get("repository_url")
-            or data.get("repo_url")
-            or ""
-        ).strip()
+        if not repository_name:
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Unable to identify repository."
+                )
+            }), 400
+
+        print(
+            f"Repository: {repository_name}",
+            flush=True
+        )
 
         # ----------------------------------------------------
-        # DIRECT FILES FROM BROWSER
+        # FILES FROM BROWSER
         # ----------------------------------------------------
 
         browser_files = (
@@ -640,84 +752,16 @@ def ai_analyze():
             or []
         )
 
-        print(
-            f"Repository: {repository}",
-            flush=True
-        )
-
-        print(
-            f"Files received directly from browser: "
-            f"{len(browser_files)}",
-            flush=True
-        )
-
-        # ----------------------------------------------------
-        # LOAD REPOSITORY IF ONLY URL WAS SENT
-        # ----------------------------------------------------
-
-        if isinstance(repository, str):
-
-            repository_name = repository
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-            else:
-
-                owner, repo_name = parse_github_url(
-                    repository
-                )
-
-                if owner and repo_name:
-
-                    repository = get_repository(
-                        f"https://github.com/{owner}/{repo_name}"
-                    )
-
-        if not isinstance(repository, dict):
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-        if not repository:
-
-            return jsonify({
-                "success": False,
-                "error": "Repository information is missing."
-            }), 400
-
-        repository = normalize_repository(
-            repository
-        )
-
-        repository_name = get_repository_identifier(
-            repository
-        )
-
-        if not repository_name:
-
-            return jsonify({
-                "success": False,
-                "error": "Unable to identify repository."
-            }), 400
-
-        # ----------------------------------------------------
-        # DETERMINE FILES
-        # ----------------------------------------------------
-
         source_files = []
 
         if browser_files:
 
             for file in browser_files:
 
-                if not isinstance(file, dict):
+                if not isinstance(
+                    file,
+                    dict
+                ):
                     continue
 
                 path = (
@@ -727,37 +771,37 @@ def ai_analyze():
                 )
 
                 content = file.get(
-                    "content",
-                    ""
+                    "content"
                 )
 
-                if path:
+                # If content exists, use it.
+                if path and content is not None:
 
                     source_files.append({
                         "path": path,
-                        "content": content or ""
+                        "content": str(content)
                     })
 
-        else:
+        # ----------------------------------------------------
+        # DATABASE FALLBACK
+        # ----------------------------------------------------
 
-            print(
-                "⚠️ No files received from browser.",
-                flush=True
+        if not source_files:
+
+            saved_paths = (
+                get_saved_file_paths(
+                    repository_name
+                )
             )
 
-            saved_file_paths = get_saved_file_paths(
-                repository_name
-            )
-
             print(
-                f"Files loaded from database: "
-                f"{saved_file_paths}",
+                f"Saved files: {saved_paths}",
                 flush=True
             )
 
             source_files = load_source_files(
                 repository,
-                saved_file_paths
+                saved_paths
             )
 
         if not source_files:
@@ -766,12 +810,14 @@ def ai_analyze():
                 "success": False,
                 "error": (
                     "No saved files were found. "
-                    "Please select and save at least one file."
+                    "Please select and save at "
+                    "least one file."
                 )
             }), 400
 
         print(
-            f"Source files loaded: {len(source_files)}",
+            f"Source files loaded: "
+            f"{len(source_files)}",
             flush=True
         )
 
@@ -779,8 +825,10 @@ def ai_analyze():
         # CACHE
         # ----------------------------------------------------
 
-        cached_analysis = AI_ANALYSIS_CACHE.get(
-            repository_name
+        cached_analysis = (
+            AI_ANALYSIS_CACHE.get(
+                repository_name
+            )
         )
 
         if is_valid_ai_analysis(
@@ -794,7 +842,8 @@ def ai_analyze():
 
             return jsonify({
                 "success": True,
-                "analysis": cached_analysis
+                "analysis": cached_analysis,
+                "cached": True
             })
 
         # ----------------------------------------------------
@@ -806,19 +855,9 @@ def ai_analyze():
             flush=True
         )
 
-        print(
-            f"Repository: {repository_name}",
-            flush=True
-        )
-
-        print(
-            f"Files sent to Gemini: {len(source_files)}",
-            flush=True
-        )
-
         result = analyze_repository(
-            repository=repository,
-            files=source_files
+            repository,
+            source_files
         )
 
         if not is_valid_ai_analysis(
@@ -833,10 +872,6 @@ def ai_analyze():
                 )
             }), 503
 
-        # ----------------------------------------------------
-        # CACHE RESULT
-        # ----------------------------------------------------
-
         AI_ANALYSIS_CACHE[
             repository_name
         ] = result
@@ -848,7 +883,8 @@ def ai_analyze():
 
         return jsonify({
             "success": True,
-            "analysis": result
+            "analysis": result,
+            "cached": False
         })
 
     except Exception as exc:
@@ -864,10 +900,7 @@ def ai_analyze():
 
         return jsonify({
             "success": False,
-            "error": (
-                "Gitora AI error: "
-                f"{str(exc)}"
-            )
+            "error": str(exc)
         }), 503
 
 
@@ -875,7 +908,10 @@ def ai_analyze():
 # REBUILD OPTIONS
 # ============================================================
 
-@main.route("/rebuild-options", methods=["POST"])
+@main.route(
+    "/rebuild-options",
+    methods=["POST"]
+)
 def rebuild_options():
 
     print(
@@ -892,79 +928,53 @@ def rebuild_options():
             or {}
         )
 
-        repository = data.get(
-            "repository"
-        )
-
-        repository_url = (
+        repository_value = (
             data.get("repository_url")
             or data.get("repo_url")
+            or data.get("repository")
             or ""
-        ).strip()
+        )
 
-        if isinstance(repository, str):
-
-            repository_name = repository
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-            else:
-
-                owner, repo_name = parse_github_url(
-                    repository
-                )
-
-                if owner and repo_name:
-
-                    repository = get_repository(
-                        f"https://github.com/{owner}/{repo_name}"
-                    )
-
-        if not repository and repository_url:
-
-            repository = get_repository(
-                repository_url
+        repository = (
+            repository_value
+            if isinstance(
+                repository_value,
+                dict
             )
+            else load_repository(
+                repository_value
+            )
+        )
 
-        if not isinstance(repository, dict):
+        if not repository:
 
             return jsonify({
                 "success": False,
-                "error": "Repository information is missing."
+                "error": (
+                    "Repository information "
+                    "is missing."
+                )
             }), 400
 
-        repository = normalize_repository(
-            repository
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
-
-        repository_name = get_repository_identifier(
-            repository
-        )
-
-        if not repository_name:
-
-            return jsonify({
-                "success": False,
-                "error": "Unable to identify repository."
-            }), 400
 
         # ----------------------------------------------------
-        # CHECK FULL ANALYSIS CACHE
+        # CACHE
         # ----------------------------------------------------
 
-        cached_analysis = AI_ANALYSIS_CACHE.get(
-            repository_name
+        cached = (
+            AI_ANALYSIS_CACHE.get(
+                repository_name
+            )
         )
 
-        if is_valid_ai_analysis(
-            cached_analysis
-        ):
+        if is_valid_ai_analysis(cached):
 
-            options = cached_analysis.get(
+            options = cached.get(
                 "rebuild_options",
                 []
             )
@@ -973,15 +983,18 @@ def rebuild_options():
 
                 return jsonify({
                     "success": True,
-                    "rebuild_options": options
+                    "rebuild_options": options,
+                    "cached": True
                 })
 
         # ----------------------------------------------------
-        # LOAD SAVED FILES
+        # FILES
         # ----------------------------------------------------
 
-        saved_paths = get_saved_file_paths(
-            repository_name
+        saved_paths = (
+            get_saved_file_paths(
+                repository_name
+            )
         )
 
         source_files = load_source_files(
@@ -1000,19 +1013,22 @@ def rebuild_options():
             }), 400
 
         # ----------------------------------------------------
-        # DEDICATED REBUILD ANALYSIS
+        # AI
         # ----------------------------------------------------
 
         result = generate_rebuild_strategies(
-            repository=repository,
-            files=source_files
+            repository,
+            source_files
         )
 
-        options = (
-            result.get("rebuild_options", [])
-            if isinstance(result, dict)
-            else []
-        )
+        options = []
+
+        if isinstance(result, dict):
+
+            options = result.get(
+                "rebuild_options",
+                []
+            )
 
         return jsonify({
             "success": True,
@@ -1027,18 +1043,18 @@ def rebuild_options():
 
         return jsonify({
             "success": False,
-            "error": (
-                "Gitora AI error: "
-                f"{str(exc)}"
-            )
+            "error": str(exc)
         }), 503
 
 
 # ============================================================
-# ANALYZE SINGLE FILE
+# SINGLE FILE ANALYSIS
 # ============================================================
 
-@main.route("/analyze-file", methods=["POST"])
+@main.route(
+    "/analyze-file",
+    methods=["POST"]
+)
 def analyze_file():
 
     print(
@@ -1055,15 +1071,12 @@ def analyze_file():
             or {}
         )
 
-        repository = data.get(
-            "repository"
-        )
-
-        repository_url = (
+        repository_value = (
             data.get("repository_url")
             or data.get("repo_url")
+            or data.get("repository")
             or ""
-        ).strip()
+        )
 
         file_path = (
             data.get("file_path")
@@ -1072,47 +1085,6 @@ def analyze_file():
             or ""
         ).strip()
 
-        if isinstance(repository, str):
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-            else:
-
-                owner, repo_name = parse_github_url(
-                    repository
-                )
-
-                if owner and repo_name:
-
-                    repository = get_repository(
-                        f"https://github.com/{owner}/{repo_name}"
-                    )
-
-        if not repository and repository_url:
-
-            repository = get_repository(
-                repository_url
-            )
-
-        if not isinstance(repository, dict):
-
-            return jsonify({
-                "success": False,
-                "error": "Repository information is missing."
-            }), 400
-
-        repository = normalize_repository(
-            repository
-        )
-
-        repository_name = get_repository_identifier(
-            repository
-        )
-
         if not file_path:
 
             return jsonify({
@@ -1120,12 +1092,41 @@ def analyze_file():
                 "error": "File path is required."
             }), 400
 
+        repository = (
+            repository_value
+            if isinstance(
+                repository_value,
+                dict
+            )
+            else load_repository(
+                repository_value
+            )
+        )
+
+        if not repository:
+
+            return jsonify({
+                "success": False,
+                "error": (
+                    "Repository information "
+                    "is missing."
+                )
+            }), 400
+
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
+        )
+
         # ----------------------------------------------------
-        # VERIFY FILE IS SAVED
+        # SAVED CHECK
         # ----------------------------------------------------
 
-        saved_paths = get_saved_file_paths(
-            repository_name
+        saved_paths = (
+            get_saved_file_paths(
+                repository_name
+            )
         )
 
         if file_path not in saved_paths:
@@ -1134,28 +1135,32 @@ def analyze_file():
                 "success": False,
                 "error": (
                     "This file has not been saved. "
-                    "Please save the file before analyzing it."
+                    "Please save the file before "
+                    "analyzing it."
                 )
             }), 400
 
         # ----------------------------------------------------
-        # CHECK FULL ANALYSIS CACHE
+        # CACHE
         # ----------------------------------------------------
 
-        cached_analysis = AI_ANALYSIS_CACHE.get(
-            repository_name
+        cached = (
+            AI_ANALYSIS_CACHE.get(
+                repository_name
+            )
         )
 
-        if is_valid_ai_analysis(
-            cached_analysis
-        ):
+        if is_valid_ai_analysis(cached):
 
-            for item in cached_analysis.get(
+            for item in cached.get(
                 "file_analysis",
                 []
             ):
 
-                if not isinstance(item, dict):
+                if not isinstance(
+                    item,
+                    dict
+                ):
                     continue
 
                 cached_path = (
@@ -1168,11 +1173,12 @@ def analyze_file():
 
                     return jsonify({
                         "success": True,
-                        "analysis": item
+                        "analysis": item,
+                        "cached": True
                     })
 
         # ----------------------------------------------------
-        # LOAD FILE FROM GITHUB
+        # LOAD FILE
         # ----------------------------------------------------
 
         source_files = load_source_files(
@@ -1184,7 +1190,10 @@ def analyze_file():
 
             return jsonify({
                 "success": False,
-                "error": "Unable to load the selected file."
+                "error": (
+                    "Unable to load the "
+                    "selected file."
+                )
             }), 404
 
         content = source_files[0].get(
@@ -1193,13 +1202,13 @@ def analyze_file():
         )
 
         # ----------------------------------------------------
-        # AI FILE ANALYSIS
+        # AI
         # ----------------------------------------------------
 
         result = analyze_single_file(
-            repository=repository,
-            file_path=file_path,
-            content=content
+            repository,
+            file_path,
+            content
         )
 
         if not isinstance(result, dict):
@@ -1212,14 +1221,10 @@ def analyze_file():
                 )
             }), 503
 
-        print(
-            f"✅ File analysis successful: {file_path}",
-            flush=True
-        )
-
         return jsonify({
             "success": True,
-            "analysis": result
+            "analysis": result,
+            "cached": False
         })
 
     except Exception as exc:
@@ -1230,10 +1235,7 @@ def analyze_file():
 
         return jsonify({
             "success": False,
-            "error": (
-                "Gitora AI error: "
-                f"{str(exc)}"
-            )
+            "error": str(exc)
         }), 503
 
 
@@ -1241,7 +1243,10 @@ def analyze_file():
 # ASK GITORA AI
 # ============================================================
 
-@main.route("/ask-ai", methods=["POST"])
+@main.route(
+    "/ask-ai",
+    methods=["POST"]
+)
 def ask_ai():
 
     print(
@@ -1258,15 +1263,12 @@ def ask_ai():
             or {}
         )
 
-        repository = data.get(
-            "repository"
-        )
-
-        repository_url = (
+        repository_value = (
             data.get("repository_url")
             or data.get("repo_url")
+            or data.get("repository")
             or ""
-        ).strip()
+        )
 
         question = (
             data.get("question")
@@ -1278,60 +1280,42 @@ def ask_ai():
 
             return jsonify({
                 "success": False,
-                "error": "Please enter a question."
+                "error": (
+                    "Please enter a question."
+                )
             }), 400
 
-        # ----------------------------------------------------
-        # LOAD REPOSITORY
-        # ----------------------------------------------------
-
-        if isinstance(repository, str):
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-            else:
-
-                owner, repo_name = parse_github_url(
-                    repository
-                )
-
-                if owner and repo_name:
-
-                    repository = get_repository(
-                        f"https://github.com/{owner}/{repo_name}"
-                    )
-
-        if not repository and repository_url:
-
-            repository = get_repository(
-                repository_url
+        repository = (
+            repository_value
+            if isinstance(
+                repository_value,
+                dict
             )
+            else load_repository(
+                repository_value
+            )
+        )
 
-        if not isinstance(repository, dict):
+        if not repository:
 
             return jsonify({
                 "success": False,
-                "error": "Repository information is missing."
+                "error": (
+                    "Repository information "
+                    "is missing."
+                )
             }), 400
 
-        repository = normalize_repository(
-            repository
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
 
-        repository_name = get_repository_identifier(
-            repository
-        )
-
-        # ----------------------------------------------------
-        # LOAD SAVED FILES
-        # ----------------------------------------------------
-
-        saved_paths = get_saved_file_paths(
-            repository_name
+        saved_paths = (
+            get_saved_file_paths(
+                repository_name
+            )
         )
 
         source_files = load_source_files(
@@ -1349,21 +1333,20 @@ def ask_ai():
                 )
             }), 400
 
-        # ----------------------------------------------------
-        # ASK AI
-        # ----------------------------------------------------
-
         answer = answer_repository_question(
-            repository=repository,
-            files=source_files,
-            question=question
+            repository,
+            source_files,
+            question
         )
 
         if not answer:
 
             return jsonify({
                 "success": False,
-                "error": "Gitora AI returned an empty answer."
+                "error": (
+                    "Gitora AI returned "
+                    "an empty answer."
+                )
             }), 503
 
         return jsonify({
@@ -1377,17 +1360,9 @@ def ask_ai():
 
         traceback.print_exc()
 
-        print(
-            f"❌ ASK AI ERROR: {exc}",
-            flush=True
-        )
-
         return jsonify({
             "success": False,
-            "error": (
-                "Gitora AI error: "
-                f"{str(exc)}"
-            )
+            "error": str(exc)
         }), 503
 
 
@@ -1395,7 +1370,10 @@ def ask_ai():
 # DOWNLOAD PDF REPORT
 # ============================================================
 
-@main.route("/download-report", methods=["POST"])
+@main.route(
+    "/download-report",
+    methods=["POST"]
+)
 def download_report():
 
     print(
@@ -1412,73 +1390,49 @@ def download_report():
             or {}
         )
 
-        repository = data.get(
-            "repository"
-        )
-
-        repository_url = (
+        repository_value = (
             data.get("repository_url")
             or data.get("repo_url")
+            or data.get("repository")
             or ""
-        ).strip()
-
-        supplied_analysis = data.get(
-            "ai_analysis"
-        ) or data.get(
-            "analysis"
         )
 
-        # ----------------------------------------------------
-        # LOAD REPOSITORY
-        # ----------------------------------------------------
+        supplied_analysis = (
+            data.get("ai_analysis")
+            or data.get("analysis")
+        )
 
-        if isinstance(repository, str):
-
-            if repository_url:
-
-                repository = get_repository(
-                    repository_url
-                )
-
-            else:
-
-                owner, repo_name = parse_github_url(
-                    repository
-                )
-
-                if owner and repo_name:
-
-                    repository = get_repository(
-                        f"https://github.com/{owner}/{repo_name}"
-                    )
-
-        if not repository and repository_url:
-
-            repository = get_repository(
-                repository_url
+        repository = (
+            repository_value
+            if isinstance(
+                repository_value,
+                dict
             )
+            else load_repository(
+                repository_value
+            )
+        )
 
-        if not isinstance(repository, dict):
+        if not repository:
 
             return jsonify({
                 "success": False,
-                "error": "Repository information is missing."
+                "error": (
+                    "Repository information "
+                    "is missing."
+                )
             }), 400
 
-        repository = normalize_repository(
-            repository
+        repository_name = (
+            get_repository_identifier(
+                repository
+            )
         )
 
-        repository_name = get_repository_identifier(
-            repository
-        )
-
-        # ----------------------------------------------------
-        # LOAD SAVED FILES
-        # ----------------------------------------------------
-
-        saved_paths = get_saved_file_paths(
-            repository_name
+        saved_paths = (
+            get_saved_file_paths(
+                repository_name
+            )
         )
 
         source_files = load_source_files(
@@ -1497,7 +1451,7 @@ def download_report():
             }), 400
 
         # ----------------------------------------------------
-        # USE SUPPLIED ANALYSIS
+        # ANALYSIS
         # ----------------------------------------------------
 
         analysis = None
@@ -1508,36 +1462,29 @@ def download_report():
 
             analysis = supplied_analysis
 
-        # ----------------------------------------------------
-        # USE CACHE
-        # ----------------------------------------------------
-
         if analysis is None:
 
-            cached_analysis = AI_ANALYSIS_CACHE.get(
-                repository_name
+            cached = (
+                AI_ANALYSIS_CACHE.get(
+                    repository_name
+                )
             )
 
-            if is_valid_ai_analysis(
-                cached_analysis
-            ):
+            if is_valid_ai_analysis(cached):
 
-                analysis = cached_analysis
-
-        # ----------------------------------------------------
-        # GENERATE ANALYSIS IF NECESSARY
-        # ----------------------------------------------------
+                analysis = cached
 
         if analysis is None:
 
             print(
-                "🔥 Generating AI analysis for PDF...",
+                "🔥 Generating AI analysis "
+                "for PDF...",
                 flush=True
             )
 
             analysis = analyze_repository(
-                repository=repository,
-                files=source_files
+                repository,
+                source_files
             )
 
             if not is_valid_ai_analysis(
@@ -1547,8 +1494,9 @@ def download_report():
                 return jsonify({
                     "success": False,
                     "error": (
-                        "Unable to generate the AI "
-                        "analysis required for the PDF."
+                        "Unable to generate the "
+                        "AI analysis required "
+                        "for the PDF."
                     )
                 }), 503
 
@@ -1557,7 +1505,7 @@ def download_report():
             ] = analysis
 
         # ----------------------------------------------------
-        # GENERATE PDF
+        # PDF
         # ----------------------------------------------------
 
         pdf_buffer = generate_repository_pdf(
@@ -1570,7 +1518,10 @@ def download_report():
 
             return jsonify({
                 "success": False,
-                "error": "Unable to generate PDF report."
+                "error": (
+                    "Unable to generate "
+                    "PDF report."
+                )
             }), 500
 
         filename = (
@@ -1595,17 +1546,9 @@ def download_report():
 
         traceback.print_exc()
 
-        print(
-            f"❌ PDF ERROR: {exc}",
-            flush=True
-        )
-
         return jsonify({
             "success": False,
-            "error": (
-                "Gitora PDF generation failed: "
-                f"{str(exc)}"
-            )
+            "error": str(exc)
         }), 500
 
 
@@ -1613,7 +1556,10 @@ def download_report():
 # GEMINI HEALTH CHECK
 # ============================================================
 
-@main.route("/ai-health", methods=["GET"])
+@main.route(
+    "/ai-health",
+    methods=["GET"]
+)
 def ai_health():
 
     print(
@@ -1639,7 +1585,10 @@ def ai_health():
 
         interaction = client.interactions.create(
             model=MODEL,
-            input="Reply with exactly: GITORA_AI_OK",
+            input=(
+                "Reply with exactly: "
+                "GITORA_AI_OK"
+            ),
             generation_config={
                 "max_output_tokens": 20
             }
@@ -1651,11 +1600,23 @@ def ai_health():
             ""
         )
 
+        if not output:
+
+            return jsonify({
+                "success": False,
+                "gemini_key": True,
+                "model": MODEL,
+                "error": (
+                    "Gemini returned "
+                    "an empty response."
+                )
+            }), 503
+
         return jsonify({
             "success": True,
             "gemini_key": True,
             "model": MODEL,
-            "response": output
+            "response": output.strip()
         })
 
     except Exception as exc:
