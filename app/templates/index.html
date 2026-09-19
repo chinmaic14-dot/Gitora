@@ -78,7 +78,8 @@
 
 
         <button class="theme-btn"
-                id="themeToggle">
+                id="themeToggle"
+                type="button">
 
             <i class="fa-solid fa-moon"></i>
 
@@ -130,10 +131,13 @@
         </p>
 
 
-        <!-- REPOSITORY INPUT -->
+        <!-- =================================================
+             REPOSITORY INPUT
+        ================================================= -->
 
-        <form action="/analyze"
-              method="POST">
+        <form action="{{ url_for('main.analyze') }}"
+              method="POST"
+              id="repositoryForm">
 
 
             <div class="input-box">
@@ -145,9 +149,13 @@
 
                     type="text"
 
-                    name="repo_url"
+                    name="repository"
+
+                    id="repository"
 
                     placeholder="https://github.com/username/project"
+
+                    autocomplete="off"
 
                     required
 
@@ -157,7 +165,8 @@
 
 
             <button type="submit"
-                    class="analyze-btn">
+                    class="analyze-btn"
+                    id="analyzeButton">
 
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
 
@@ -169,7 +178,9 @@
         </form>
 
 
-        <!-- HERO BUTTONS -->
+        <!-- =================================================
+             HERO BUTTONS
+        ================================================= -->
 
         <div class="hero-buttons">
 
@@ -201,22 +212,28 @@
          RIGHT SIDE IMAGE
     ================================================= -->
 
-   <div class="hero-image">
+    <div class="hero-image">
 
-    <div class="hero-tagline-box">
+        <div class="hero-tagline-box">
 
-        <h2>Code In. Clarity Out.</h2>
+            <h2>Code In. Clarity Out.</h2>
 
-        <p>Decode. Understand. Build.</p>
+            <p>Decode. Understand. Build.</p>
+
+        </div>
+
+
+        <img
+
+            src="{{ url_for('static', filename='images/hero.png') }}"
+
+            alt="Gitora AI Repository Analyzer"
+
+        >
 
     </div>
 
-    <img
-        src="{{ url_for('static', filename='images/hero.png') }}"
-        alt="Gitora AI Repository Analyzer"
-    >
 
-</div>
 </section>
 
 
@@ -976,7 +993,8 @@
      BACK TO TOP
 ===================================================== -->
 
-<button id="topBtn">
+<button id="topBtn"
+        type="button">
 
     <i class="fa-solid fa-arrow-up"></i>
 
@@ -984,7 +1002,9 @@
 
 
 
-<!-- JAVASCRIPT -->
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
 
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 

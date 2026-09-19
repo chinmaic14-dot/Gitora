@@ -1,36 +1,60 @@
+# ============================================================
+# GITORA GITHUB SERVICE
+# GitHub REST API integration
+# ============================================================
+
 import os
 import base64
 import requests
 
+from urllib.parse import urlparse
+
 from dotenv import load_dotenv
 
 
-# =====================================================
+# ============================================================
 # LOAD ENVIRONMENT VARIABLES
-# =====================================================
+# ============================================================
 
 load_dotenv()
 
 
-# =====================================================
-# GITHUB CONFIGURATION
-# =====================================================
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
 GITHUB_API = "https://api.github.com"
 
 GITHUB_TOKEN = os.getenv(
-    "GITHUB_TOKEN"
+    "GITHUB_TOKEN",
+    ""
+).strip()
+
+
+GITHUB_TIMEOUT = int(
+    os.getenv(
+        "GITHUB_TIMEOUT",
+        "30"
+    )
 )
 
 
-# GitHub recommends these headers for REST API requests.
+# ============================================================
+# GITHUB HEADERS
+# ============================================================
+
 HEADERS = {
-    "Accept": "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
+    "Accept":
+        "application/vnd.github+json",
+
+    "X-GitHub-Api-Version":
+        "2022-11-28",
+
+    "User-Agent":
+        "Gitora-AI-Repository-Analyzer"
 }
 
 
-# Add authentication only when a token exists.
 if GITHUB_TOKEN:
 
     HEADERS["Authorization"] = (
@@ -38,21 +62,24 @@ if GITHUB_TOKEN:
     )
 
 
-# =====================================================
+# ============================================================
 # INTERNAL REQUEST HELPER
-# =====================================================
+# ============================================================
 
 def github_get(
     api_url,
-    timeout=30
+    timeout=None
 ):
     """
-    Make an authenticated GET request to GitHub.
+    Perform a GET request to the GitHub REST API.
 
-    Centralizing requests here ensures that every
-    GitHub API call uses the same headers and error
-    handling.
+    Returns:
+        tuple:
+            (success, response_data)
     """
+
+    if timeout is None:
+        timeout = GITHUB_TIMEOUT
 
     try:
 
@@ -62,35 +89,46 @@ def github_get(
             timeout=timeout
         )
 
-    except requests.RequestException as error:
+    except requests.exceptions.Timeout as error:
 
-        print(
-            "GITHUB CONNECTION ERROR:",
-            error
-        )
+        raise RuntimeError(
+            "GitHub API request timed out. "
+            "Please try again."
+        ) from error
 
-        raise ValueError(
+    except requests.exceptions.ConnectionError as error:
+
+        raise RuntimeError(
             "Unable to connect to GitHub. "
             "Please check your internet connection."
-        )
+        ) from error
 
-    print(
-        "GITHUB STATUS:",
-        response.status_code,
-        api_url
-    )
+    except requests.exceptions.RequestException as error:
 
-    # -------------------------------------------------
+        raise RuntimeError(
+            "GitHub API request failed."
+        ) from error
+
+
+    # ========================================================
     # SUCCESS
-    # -------------------------------------------------
+    # ========================================================
 
     if response.status_code == 200:
 
-        return response
+        try:
+            return True, response.json()
 
-    # -------------------------------------------------
-    # RATE LIMIT / FORBIDDEN
-    # -------------------------------------------------
+        except ValueError as error:
+
+            raise RuntimeError(
+                "GitHub returned an invalid response."
+            ) from error
+
+
+    # ========================================================
+    # RATE LIMIT
+    # ========================================================
 
     if response.status_code == 403:
 
@@ -98,87 +136,47 @@ def github_get(
             "X-RateLimit-Remaining"
         )
 
-        reset = response.headers.get(
-            "X-RateLimit-Reset"
-        )
-
-        message = ""
-
-        try:
-
-            error_data = response.json()
-
-            message = error_data.get(
-                "message",
-                ""
-            )
-
-        except ValueError:
-
-            pass
-
-        print(
-            "GITHUB 403:",
-            message
-        )
-
-        print(
-            "RATE LIMIT REMAINING:",
-            remaining
-        )
-
-        print(
-            "RATE LIMIT RESET:",
-            reset
-        )
-
         if remaining == "0":
 
-            raise ValueError(
+            raise RuntimeError(
                 "GitHub API rate limit exceeded. "
-                "Please wait and try again."
+                "Please add a valid GITHUB_TOKEN "
+                "or wait before trying again."
             )
 
-        if GITHUB_TOKEN:
-
-            raise ValueError(
-                "GitHub rejected the API request "
-                "with 403 Forbidden. Your GitHub "
-                "token may be invalid, expired, or "
-                "does not have access to this repository."
-            )
-
-        raise ValueError(
-            "GitHub returned 403 Forbidden. "
-            "Configure GITHUB_TOKEN in your .env "
-            "file and try again."
+        raise RuntimeError(
+            "GitHub denied the API request."
         )
 
-    # -------------------------------------------------
+
+    # ========================================================
     # NOT FOUND
-    # -------------------------------------------------
+    # ========================================================
 
     if response.status_code == 404:
 
-        raise ValueError(
-            "GitHub repository or resource was not found. "
-            "Check the repository URL and permissions."
+        raise RuntimeError(
+            "GitHub repository or file was not found. "
+            "Please check the repository URL and make "
+            "sure the repository is accessible."
         )
 
-    # -------------------------------------------------
+
+    # ========================================================
     # UNAUTHORIZED
-    # -------------------------------------------------
+    # ========================================================
 
     if response.status_code == 401:
 
-        raise ValueError(
+        raise RuntimeError(
             "GitHub authentication failed. "
-            "Your GITHUB_TOKEN may be invalid or expired."
+            "Please check your GITHUB_TOKEN."
         )
 
-    # -------------------------------------------------
-    # OTHER ERROR
-    # -------------------------------------------------
+
+    # ========================================================
+    # OTHER ERRORS
+    # ========================================================
 
     try:
 
@@ -186,118 +184,266 @@ def github_get(
 
         message = error_data.get(
             "message",
-            "Unknown GitHub error."
-        )
-
-    except ValueError:
-
-        message = (
             "Unknown GitHub API error."
         )
 
-    raise ValueError(
-        f"GitHub returned status "
-        f"{response.status_code}: {message}"
-    )
+    except Exception:
 
-
-# =====================================================
-# GET REPOSITORY INFORMATION
-# =====================================================
-
-def get_repository_info(repo_url):
-
-    repo_url = (
-        repo_url
-        .strip()
-        .rstrip("/")
-    )
-
-    if repo_url.endswith(".git"):
-
-        repo_url = repo_url[:-4]
-
-    parts = repo_url.split("/")
-
-    if (
-        len(parts) < 5
-        or parts[2].lower() != "github.com"
-    ):
-
-        raise ValueError(
-            "Please enter a valid GitHub repository URL."
+        message = (
+            response.text[:300]
+            or "Unknown GitHub API error."
         )
 
-    owner = parts[3]
-    repo = parts[4]
+
+    raise RuntimeError(
+        f"GitHub API error "
+        f"({response.status_code}): "
+        f"{message}"
+    )
+
+
+# ============================================================
+# PARSE GITHUB URL
+# ============================================================
+
+def parse_github_url(
+    repo_url
+):
+    """
+    Convert GitHub repository URL into:
+        owner, repository
+
+    Supports:
+
+        https://github.com/user/repo
+        https://github.com/user/repo.git
+        github.com/user/repo
+        user/repo
+    """
+
+    value = str(
+        repo_url or ""
+    ).strip()
+
+    if not value:
+
+        raise ValueError(
+            "GitHub repository URL is empty."
+        )
+
+
+    # --------------------------------------------------------
+    # Remove trailing slash
+    # --------------------------------------------------------
+
+    value = value.rstrip("/")
+
+
+    # --------------------------------------------------------
+    # Remove .git
+    # --------------------------------------------------------
+
+    if value.endswith(".git"):
+
+        value = value[:-4]
+
+
+    # --------------------------------------------------------
+    # Full URL
+    # --------------------------------------------------------
+
+    if (
+        value.startswith("https://")
+        or value.startswith("http://")
+    ):
+
+        parsed = urlparse(
+            value
+        )
+
+        hostname = (
+            parsed.netloc
+            .lower()
+            .split(":")[0]
+        )
+
+        if hostname != "github.com":
+
+            raise ValueError(
+                "Please provide a valid github.com repository URL."
+            )
+
+        parts = [
+            part
+            for part in parsed.path.split("/")
+            if part
+        ]
+
+    else:
+
+        # ----------------------------------------------------
+        # github.com/user/repo
+        # ----------------------------------------------------
+
+        if value.startswith(
+            "github.com/"
+        ):
+
+            value = value[
+                len("github.com/"):
+            ]
+
+        parts = [
+            part
+            for part in value.split("/")
+            if part
+        ]
+
+
+    # --------------------------------------------------------
+    # Validate
+    # --------------------------------------------------------
+
+    if len(parts) < 2:
+
+        raise ValueError(
+            "Invalid GitHub repository. "
+            "Use owner/repository."
+        )
+
+
+    owner = parts[0].strip()
+
+    repository = parts[1].strip()
+
+
+    if not owner or not repository:
+
+        raise ValueError(
+            "Invalid GitHub repository."
+        )
+
+
+    return owner, repository
+
+
+# ============================================================
+# GET REPOSITORY INFORMATION
+# ============================================================
+
+def get_repository_info(
+    repo_url
+):
+    """
+    Get basic repository metadata.
+    """
+
+    owner, repository = parse_github_url(
+        repo_url
+    )
+
 
     api_url = (
         f"{GITHUB_API}/repos/"
-        f"{owner}/{repo}"
+        f"{owner}/{repository}"
     )
 
-    response = github_get(
-        api_url,
-        timeout=20
+
+    _, data = github_get(
+        api_url
     )
 
-    try:
-
-        data = response.json()
-
-    except ValueError:
-
-        raise ValueError(
-            "GitHub returned invalid repository data."
-        )
 
     return {
-
         "name":
-            data.get("name"),
+            data.get(
+                "name",
+                repository
+            ),
 
         "full_name":
-            data.get("full_name"),
+            data.get(
+                "full_name",
+                f"{owner}/{repository}"
+            ),
 
         "description":
-            data.get("description"),
+            data.get(
+                "description"
+            )
+            or "No description provided.",
 
         "language":
-            data.get("language"),
+            data.get(
+                "language"
+            )
+            or "Not detected",
 
         "stars":
-            data.get("stargazers_count"),
+            data.get(
+                "stargazers_count",
+                0
+            ),
 
         "forks":
-            data.get("forks_count"),
+            data.get(
+                "forks_count",
+                0
+            ),
 
         "open_issues":
-            data.get("open_issues_count"),
+            data.get(
+                "open_issues_count",
+                0
+            ),
 
         "default_branch":
-            data.get("default_branch"),
+            data.get(
+                "default_branch"
+            )
+            or "main",
 
         "owner":
             owner,
 
         "repo":
-            repo,
+            repository,
 
         "url":
-            data.get("html_url")
-
+            data.get(
+                "html_url",
+                f"https://github.com/"
+                f"{owner}/{repository}"
+            )
     }
 
 
-# =====================================================
-# GET ALL REPOSITORY FILES
-# =====================================================
+# ============================================================
+# GET REPOSITORY FILES
+# ============================================================
 
 def get_repository_files(
     owner,
     repo,
     branch
 ):
+    """
+    Get the complete recursive file tree
+    of a GitHub repository.
+    """
+
+    if not owner or not repo:
+
+        raise ValueError(
+            "GitHub owner and repository are required."
+        )
+
+
+    branch = (
+        branch
+        or "main"
+    )
+
 
     api_url = (
         f"{GITHUB_API}/repos/"
@@ -305,64 +451,78 @@ def get_repository_files(
         f"{branch}?recursive=1"
     )
 
-    response = github_get(
+
+    _, data = github_get(
         api_url,
-        timeout=30
+        timeout=GITHUB_TIMEOUT
     )
 
-    try:
 
-        data = response.json()
+    tree = data.get(
+        "tree",
+        []
+    )
 
-    except ValueError:
-
-        raise ValueError(
-            "GitHub returned invalid repository tree data."
-        )
-
-    # GitHub can indicate that a recursive tree is
-    # truncated. We warn rather than silently pretending
-    # we received every file.
-    if data.get("truncated"):
-
-        print(
-            "WARNING: GitHub repository tree "
-            "is truncated."
-        )
 
     files = []
 
-    for item in data.get(
-        "tree",
-        []
-    ):
+
+    for item in tree:
 
         if item.get("type") != "blob":
-
             continue
+
 
         path = item.get(
-            "path"
-        )
+            "path",
+            ""
+        ).strip()
+
 
         if not path:
-
             continue
 
-        files.append({
 
+        files.append({
             "path": path,
 
-            "type": "file"
+            "type": "file",
 
+            "sha":
+                item.get(
+                    "sha",
+                    ""
+                ),
+
+            "size":
+                item.get(
+                    "size",
+                    0
+                ),
+
+            "url":
+                item.get(
+                    "url",
+                    ""
+                ),
+
+            "categories":
+                categorize_file(path)
         })
+
+
+    files.sort(
+        key=lambda item:
+            item["path"].lower()
+    )
+
 
     return files
 
 
-# =====================================================
-# GET INDIVIDUAL FILE CONTENT
-# =====================================================
+# ============================================================
+# GET FILE CONTENT
+# ============================================================
 
 def get_file_content(
     owner,
@@ -370,292 +530,528 @@ def get_file_content(
     file_path,
     branch
 ):
+    """
+    Retrieve and decode a single text file
+    from GitHub.
+    """
+
+    if not owner or not repo:
+
+        raise ValueError(
+            "GitHub owner and repository are required."
+        )
+
+
+    if not file_path:
+
+        raise ValueError(
+            "File path is required."
+        )
+
+
+    branch = (
+        branch
+        or "main"
+    )
+
 
     api_url = (
         f"{GITHUB_API}/repos/"
         f"{owner}/{repo}/contents/"
-        f"{file_path}?ref={branch}"
+        f"{file_path}"
+        f"?ref={branch}"
     )
 
-    try:
-
-        response = github_get(
-            api_url,
-            timeout=30
-        )
-
-    except ValueError as error:
-
-        print(
-            "GITHUB FILE ERROR:",
-            file_path,
-            error
-        )
-
-        # Preserve your existing behaviour:
-        # callers can skip an individual file.
-        return None
 
     try:
 
-        data = response.json()
-
-    except ValueError:
-
-        print(
-            "GITHUB FILE JSON ERROR:",
-            file_path
+        _, data = github_get(
+            api_url
         )
 
+    except RuntimeError:
+
+        # ----------------------------------------------------
+        # Let the caller decide how to handle missing files.
+        # ----------------------------------------------------
+
         return None
+
+
+    if not isinstance(
+        data,
+        dict
+    ):
+
+        return None
+
+
+    # ========================================================
+    # GITHUB DIRECTORY RESPONSE
+    # ========================================================
 
     if data.get("type") != "file":
 
-        print(
-            "GITHUB RESOURCE IS NOT A FILE:",
-            file_path
-        )
-
         return None
 
+
     encoded_content = data.get(
-        "content",
-        ""
+        "content"
     )
+
 
     if not encoded_content:
 
-        print(
-            "GITHUB FILE HAS NO CONTENT:",
-            file_path
-        )
-
         return None
+
 
     try:
 
-        # GitHub normally returns Base64 content with
-        # newline characters. Removing whitespace makes
-        # decoding more robust.
+        # GitHub normally includes newlines
+        # in Base64 content.
+
         encoded_content = (
             encoded_content
             .replace("\n", "")
             .replace("\r", "")
         )
 
-        content = base64.b64decode(
+
+        decoded = base64.b64decode(
             encoded_content
-        ).decode(
-            "utf-8",
-            errors="ignore"
         )
 
-        print(
-            "GITHUB FILE LOADED:",
-            file_path
-        )
 
-        return content
+        # UTF-8 first.
 
-    except Exception as error:
+        try:
 
-        print(
-            "FILE DECODE ERROR:",
-            file_path,
-            error
-        )
+            return decoded.decode(
+                "utf-8"
+            )
+
+        except UnicodeDecodeError:
+
+            # ------------------------------------------------
+            # Fallback for source files using another encoding.
+            # ------------------------------------------------
+
+            return decoded.decode(
+                "utf-8",
+                errors="replace"
+            )
+
+
+    except Exception:
 
         return None
 
 
-# =====================================================
-# CATEGORIZE FILE
-# =====================================================
+# ============================================================
+# FILE CATEGORY DETECTION
+# ============================================================
 
-def categorize_file(file_path):
+def categorize_file(
+    file_path
+):
+    """
+    Categorize repository files for Gitora's UI
+    and AI context.
+    """
 
-    path = file_path.lower()
+    path = str(
+        file_path or ""
+    ).lower().strip()
+
+    filename = (
+        path.split("/")[-1]
+        if path
+        else ""
+    )
+
 
     categories = []
 
-    # -------------------------------------------------
+
+    # ========================================================
     # ENTRY POINTS
-    # -------------------------------------------------
+    # ========================================================
+
+    entry_points = {
+        "app.py",
+        "main.py",
+        "server.py",
+        "manage.py",
+        "run.py",
+        "index.js",
+        "server.js",
+        "main.js",
+        "index.ts",
+        "main.ts"
+    }
+
+
+    if filename in entry_points:
+
+        categories.append(
+            "entry-point"
+        )
+
+
+    # ========================================================
+    # FLASK / DJANGO / BACKEND ROUTES
+    # ========================================================
+
+    route_keywords = [
+        "route",
+        "routes",
+        "view",
+        "views",
+        "controller",
+        "controllers",
+        "endpoint",
+        "api"
+    ]
+
 
     if any(
-        name in path
-        for name in [
-            "app.py",
-            "main.py",
-            "server.py",
-            "run.py",
-            "index.js",
-            "main.js",
-            "server.js"
-        ]
+        keyword in path
+        for keyword in route_keywords
     ):
 
         categories.append(
-            "Entry Point"
+            "routes"
         )
 
-    # -------------------------------------------------
-    # ROUTES / API
-    # -------------------------------------------------
 
-    if any(
-        name in path
-        for name in [
-            "route",
-            "routes",
-            "api",
-            "controller",
-            "views"
-        ]
-    ):
-
-        categories.append(
-            "Routes / API"
-        )
-
-    # -------------------------------------------------
-    # DATABASE
-    # -------------------------------------------------
-
-    if any(
-        name in path
-        for name in [
-            "model",
-            "models",
-            "database",
-            "db",
-            "schema"
-        ]
-    ):
-
-        categories.append(
-            "Database"
-        )
-
-    # -------------------------------------------------
-    # AUTHENTICATION
-    # -------------------------------------------------
-
-    if any(
-        name in path
-        for name in [
-            "auth",
-            "login",
-            "register",
-            "signup",
-            "user"
-        ]
-    ):
-
-        categories.append(
-            "Authentication"
-        )
-
-    # -------------------------------------------------
-    # CONFIGURATION
-    # -------------------------------------------------
-
-    if any(
-        name in path
-        for name in [
-            "config",
-            ".env",
-            "settings"
-        ]
-    ):
-
-        categories.append(
-            "Configuration"
-        )
-
-    # -------------------------------------------------
-    # DEPENDENCIES
-    # -------------------------------------------------
-
-    if any(
-        name in path
-        for name in [
-            "requirements.txt",
-            "package.json",
-            "pyproject.toml",
-            "pom.xml",
-            "build.gradle"
-        ]
-    ):
-
-        categories.append(
-            "Dependencies"
-        )
-
-    # -------------------------------------------------
-    # DOCUMENTATION
-    # -------------------------------------------------
-
-    if any(
-        name in path
-        for name in [
-            "readme",
-            "documentation",
-            "docs/"
-        ]
-    ):
-
-        categories.append(
-            "Documentation"
-        )
-
-    # -------------------------------------------------
+    # ========================================================
     # FRONTEND
-    # -------------------------------------------------
+    # ========================================================
+
+    frontend_extensions = (
+        ".html",
+        ".htm",
+        ".jsx",
+        ".tsx",
+        ".vue",
+        ".svelte"
+    )
+
+
+    if path.endswith(
+        frontend_extensions
+    ):
+
+        categories.append(
+            "frontend"
+        )
+
+
+    # ========================================================
+    # JAVASCRIPT / TYPESCRIPT
+    # ========================================================
+
+    if path.endswith(
+        (
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx"
+        )
+    ):
+
+        categories.append(
+            "javascript"
+        )
+
+
+    # ========================================================
+    # PYTHON
+    # ========================================================
+
+    if path.endswith(
+        ".py"
+    ):
+
+        categories.append(
+            "python"
+        )
+
+
+    # ========================================================
+    # DATABASE
+    # ========================================================
+
+    database_keywords = [
+        "model",
+        "models",
+        "database",
+        "db",
+        "schema",
+        "migration",
+        "migrations"
+    ]
+
 
     if any(
-        path.endswith(ext)
-        for ext in [
-            ".html",
+        keyword in path
+        for keyword in database_keywords
+    ):
+
+        categories.append(
+            "database"
+        )
+
+
+    database_extensions = (
+        ".sql",
+        ".sqlite",
+        ".sqlite3",
+        ".db"
+    )
+
+
+    if path.endswith(
+        database_extensions
+    ):
+
+        categories.append(
+            "database"
+        )
+
+
+    # ========================================================
+    # AUTHENTICATION
+    # ========================================================
+
+    auth_keywords = [
+        "auth",
+        "authentication",
+        "authorize",
+        "authorization",
+        "login",
+        "logout",
+        "signup",
+        "register",
+        "session",
+        "jwt",
+        "oauth",
+        "permission"
+    ]
+
+
+    if any(
+        keyword in path
+        for keyword in auth_keywords
+    ):
+
+        categories.append(
+            "authentication"
+        )
+
+
+    # ========================================================
+    # SERVICES
+    # ========================================================
+
+    service_keywords = [
+        "service",
+        "services",
+        "utils",
+        "utility",
+        "utilities",
+        "helper",
+        "helpers"
+    ]
+
+
+    if any(
+        keyword in path
+        for keyword in service_keywords
+    ):
+
+        categories.append(
+            "services"
+        )
+
+
+    # ========================================================
+    # CONFIGURATION
+    # ========================================================
+
+    config_files = {
+        ".env",
+        ".env.example",
+        ".env.sample",
+        "config.py",
+        "settings.py",
+        "config.js",
+        "settings.js",
+        "dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "render.yaml",
+        "vercel.json",
+        "netlify.toml"
+    }
+
+
+    if filename in config_files:
+
+        categories.append(
+            "configuration"
+        )
+
+
+    # ========================================================
+    # DEPENDENCIES
+    # ========================================================
+
+    dependency_files = {
+        "requirements.txt",
+        "pyproject.toml",
+        "pipfile",
+        "package.json",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock"
+    }
+
+
+    if filename in dependency_files:
+
+        categories.append(
+            "dependencies"
+        )
+
+
+    # ========================================================
+    # DOCUMENTATION
+    # ========================================================
+
+    documentation_files = {
+        "readme",
+        "readme.md",
+        "readme.txt",
+        "contributing.md",
+        "changelog.md",
+        "license",
+        "license.md"
+    }
+
+
+    if (
+        filename in documentation_files
+        or path.startswith("docs/")
+    ):
+
+        categories.append(
+            "documentation"
+        )
+
+
+    # ========================================================
+    # CSS
+    # ========================================================
+
+    if path.endswith(
+        (
             ".css",
             ".scss",
-            ".jsx",
-            ".tsx"
-        ]
+            ".sass",
+            ".less"
+        )
     ):
 
         categories.append(
-            "Frontend"
+            "styling"
         )
 
-    # -------------------------------------------------
-    # JAVASCRIPT
-    # -------------------------------------------------
 
-    if path.endswith(".js"):
+    # ========================================================
+    # TESTING
+    # ========================================================
+
+    if (
+        "test" in filename
+        or "tests/" in path
+        or "testing/" in path
+    ):
 
         categories.append(
-            "JavaScript"
+            "testing"
         )
 
-    # -------------------------------------------------
-    # PYTHON
-    # -------------------------------------------------
 
-    if path.endswith(".py"):
-
-        categories.append(
-            "Python"
-        )
-
-    # -------------------------------------------------
+    # ========================================================
     # OTHER
-    # -------------------------------------------------
+    # ========================================================
 
     if not categories:
 
         categories.append(
-            "Other"
+            "other"
         )
 
-    return categories
+
+    # Remove duplicates while preserving order.
+
+    return list(
+        dict.fromkeys(
+            categories
+        )
+    )
+
+
+# ============================================================
+# CHECK GITHUB CONNECTION
+# ============================================================
+
+def test_github_connection():
+    """
+    Small GitHub API health check.
+    """
+
+    try:
+
+        api_url = (
+            f"{GITHUB_API}/rate_limit"
+        )
+
+        _, data = github_get(
+            api_url,
+            timeout=10
+        )
+
+        rate = data.get(
+            "rate",
+            {}
+        )
+
+        return {
+            "ok": True,
+
+            "authenticated":
+                bool(GITHUB_TOKEN),
+
+            "remaining":
+                rate.get(
+                    "remaining"
+                ),
+
+            "limit":
+                rate.get(
+                    "limit"
+                )
+        }
+
+    except Exception as error:
+
+        return {
+            "ok": False,
+            "authenticated":
+                bool(GITHUB_TOKEN),
+            "message":
+                str(error)
+        }

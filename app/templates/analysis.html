@@ -1,1155 +1,1108 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport"
-content="width=device-width, initial-scale=1.0">
-
-<title>{{ repository.name }} | Gitora AI</title><link rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"><link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"><style>
-
-* {
-    box-sizing: border-box;
-}
-
-body {
-
-    margin: 0;
-
-    background:
-        radial-gradient(
-            circle at 10% 10%,
-            rgba(99,102,241,.12),
-            transparent 30%
-        ),
-        #020617;
-
-    color: #e2e8f0;
-
-    font-family: Poppins, sans-serif;
-}
-
-.analysis-page {
-
-    width: 92%;
-
-    max-width: 1400px;
-
-    margin: auto;
-
-    padding: 40px 0 100px;
-}
-
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.analysis-header {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 20px;
-
-    padding: 25px;
-
-    margin-bottom: 30px;
-
-    border-radius: 20px;
-
-    background: rgba(15,23,42,.75);
-
-    border: 1px solid rgba(255,255,255,.08);
-
-    backdrop-filter: blur(20px);
-}
-
-.repo-title {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 15px;
-}
-
-.repo-icon {
-
-    width: 55px;
-
-    height: 55px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    border-radius: 15px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #6366f1,
-            #38bdf8
-        );
-
-    font-size: 25px;
-}
-
-.repo-title h1 {
-
-    margin: 0;
-
-    font-size: 26px;
-}
-
-.repo-title p {
-
-    margin: 5px 0 0;
-
-    color: #94a3b8;
-
-    font-size: 13px;
-}
-
-.repo-link {
-
-    color: #38bdf8;
-
-    text-decoration: none;
-}
-
-.repo-link:hover {
-
-    color: #7dd3fc;
-}
-
-
-/* =====================================================
-   SECTIONS
-===================================================== */
-
-.section {
-
-    margin-top: 30px;
-
-    padding: 30px;
-
-    border-radius: 20px;
-
-    background: rgba(15,23,42,.72);
-
-    border: 1px solid rgba(255,255,255,.07);
-
-    backdrop-filter: blur(18px);
-}
-
-.section-header {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    margin-bottom: 25px;
-}
-
-.section-header h2 {
-
-    margin: 0;
-
-    font-size: 21px;
-}
-
-.section-header h2 i {
-
-    color: #38bdf8;
-
-    margin-right: 8px;
-}
-
-.file-count {
-
-    color: #38bdf8;
-
-    font-size: 13px;
-}
-
-
-/* =====================================================
-   FILE SELECTION
-===================================================== */
-
-.file-controls {
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 12px;
-
-    align-items: center;
-
-    margin-bottom: 20px;
-}
-
-.file-controls button {
-
-    border: none;
-
-    padding: 10px 15px;
-
-    border-radius: 9px;
-
-    background: #1e293b;
-
-    color: #e2e8f0;
-
-    cursor: pointer;
-
-    font-family: inherit;
-}
-
-.file-controls button:hover {
-
-    background: #334155;
-}
-
-#selectedCount {
-
-    color: #94a3b8;
-
-    font-size: 13px;
-}
-
-.file-list {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(2,1fr);
-
-    gap: 10px;
-
-    max-height: 500px;
-
-    overflow-y: auto;
-}
-
-.file-item {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    padding: 13px;
-
-    border-radius: 10px;
-
-    background:
-        rgba(2,6,23,.55);
-
-    border:
-        1px solid
-        rgba(255,255,255,.06);
-
-    cursor: pointer;
-
-    font-size: 13px;
-}
-
-.file-item:hover {
-
-    border-color:
-        rgba(56,189,248,.35);
-}
-
-.file-item i {
-
-    color: #818cf8;
-}
-
-.file-item input {
-
-    accent-color: #6366f1;
-}
-
-.save-files-btn,
-.run-ai-btn,
-.analyze-file-btn,
-.pdf-btn {
-
-    border: none;
-
-    color: white;
-
-    font-family: inherit;
-
-    font-weight: 600;
-
-    cursor: pointer;
-}
-
-.save-files-btn {
-
-    margin-top: 20px;
-
-    padding: 13px 20px;
-
-    border-radius: 10px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #6366f1,
-            #38bdf8
-        );
-}
-
-
-/* =====================================================
-   AI ANALYSIS
-===================================================== */
-
-.ai-analysis-card {
-
-    padding: 30px;
-
-    border-radius: 18px;
-
-    background:
-        linear-gradient(
-            135deg,
-            rgba(99,102,241,.12),
-            rgba(56,189,248,.06)
-        );
-
-    border:
-        1px solid
-        rgba(99,102,241,.2);
-}
-
-.ai-analysis-top {
-
-    display: flex;
-
-    gap: 15px;
-
-    align-items: center;
-
-    margin-bottom: 20px;
-}
-
-.ai-icon {
-
-    width: 50px;
-
-    height: 50px;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    border-radius: 14px;
-
-    background:
-        rgba(129,140,248,.15);
-
-    color: #a78bfa;
-
-    font-size: 22px;
-}
-
-.ai-analysis-top h3 {
-
-    margin: 0;
-}
-
-.ai-analysis-top p {
-
-    margin: 4px 0 0;
-
-    color: #94a3b8;
-
-    font-size: 13px;
-}
-
-.analysis-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(2,1fr);
-
-    gap: 18px;
-}
-
-.analysis-box {
-
-    padding: 22px;
-
-    border-radius: 14px;
-
-    background:
-        rgba(2,6,23,.45);
-
-    border:
-        1px solid
-        rgba(255,255,255,.06);
-}
-
-.analysis-box h3 {
-
-    margin-top: 0;
-
-    font-size: 16px;
-
-    color: #38bdf8;
-}
-
-.analysis-box p {
-
-    color: #cbd5e1;
-
-    line-height: 1.8;
-
-    font-size: 13px;
-
-    white-space: pre-wrap;
-}
-
-.run-ai-btn {
-
-    margin-top: 25px;
-
-    padding: 13px 22px;
-
-    border-radius: 10px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #7c3aed,
-            #2563eb
-        );
-}
-
-.run-ai-btn:hover {
-
-    opacity: .9;
-}
-
-.run-ai-btn:disabled,
-.analyze-file-btn:disabled {
-
-    opacity: .6;
-
-    cursor: wait;
-}
-
-#aiStatus {
-
-    margin-top: 12px;
-
-    color: #38bdf8;
-}
-
-
-/* =====================================================
-   API REQUESTS
-===================================================== */
-
-.requests-list {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 12px;
-}
-
-.request-item {
-
-    padding: 16px;
-
-    border-radius: 12px;
-
-    background:
-        rgba(2,6,23,.45);
-
-    border:
-        1px solid
-        rgba(56,189,248,.12);
-}
-
-.request-item strong {
-
-    color: #38bdf8;
-
-    display: block;
-
-    margin-bottom: 6px;
-}
-
-.request-item p {
-
-    margin: 4px 0;
-
-    color: #cbd5e1;
-
-    font-size: 13px;
-
-    line-height: 1.7;
-}
-
-
-/* =====================================================
-   FILE ANALYSIS
-===================================================== */
-
-.file-analysis-card {
-
-    margin-bottom: 18px;
-
-    padding: 22px;
-
-    border-radius: 15px;
-
-    background:
-        rgba(2,6,23,.5);
-
-    border:
-        1px solid
-        rgba(255,255,255,.06);
-}
-
-.file-analysis-title {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    gap: 12px;
-
-    margin-bottom: 18px;
-}
-
-.file-analysis-name {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-}
-
-.file-analysis-title i {
-
-    color: #818cf8;
-}
-
-.file-analysis-title h3 {
-
-    margin: 0;
-
-    font-size: 16px;
-
-    word-break: break-word;
-}
-
-.analyze-file-btn {
-
-    padding: 9px 14px;
-
-    border-radius: 9px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #7c3aed,
-            #2563eb
-        );
-
-    font-size: 12px;
-}
-
-.file-analysis-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(2,1fr);
-
-    gap: 12px;
-}
-
-.explanation-item {
-
-    padding: 15px;
-
-    border-radius: 10px;
-
-    background:
-        rgba(30,41,59,.55);
-}
-
-.explanation-item strong {
-
-    display: block;
-
-    color: #38bdf8;
-
-    margin-bottom: 7px;
-
-    font-size: 12px;
-
-    text-transform: uppercase;
-}
-
-.explanation-item p {
-
-    margin: 0;
-
-    color: #cbd5e1;
-
-    font-size: 13px;
-
-    line-height: 1.7;
-
-    white-space: pre-wrap;
-}
-
-.break-box {
-
-    margin-top: 12px;
-
-    padding: 15px;
-
-    border-radius: 10px;
-
-    background:
-        rgba(239,68,68,.06);
-
-    border:
-        1px solid
-        rgba(239,68,68,.15);
-}
-
-.break-box strong {
-
-    color: #f87171;
-}
-
-.break-box p {
-
-    color: #cbd5e1;
-
-    font-size: 13px;
-
-    line-height: 1.7;
-}
-
-
-/* =====================================================
-   SOURCE CODE
-===================================================== */
-
-.source-file {
-
-    margin-bottom: 20px;
-
-    border-radius: 14px;
-
-    overflow: hidden;
-
-    border:
-        1px solid
-        rgba(255,255,255,.07);
-}
-
-.source-header {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 10px;
-
-    padding: 13px 18px;
-
-    background: #0f172a;
-}
-
-.source-header span {
-
-    font-size: 13px;
-
-    color: #cbd5e1;
-}
-
-.source-header i {
-
-    color: #818cf8;
-
-    margin-right: 7px;
-}
-
-pre {
-
-    margin: 0;
-
-    padding: 20px;
-
-    max-height: 500px;
-
-    overflow: auto;
-
-    background: #020617;
-
-    color: #cbd5e1;
-
-    font-size: 12px;
-
-    line-height: 1.7;
-}
-
-
-/* =====================================================
-   CHAT
-===================================================== */
-
-.chat-box {
-
-    min-height: 250px;
-
-    max-height: 500px;
-
-    overflow-y: auto;
-
-    padding: 20px;
-
-    margin-bottom: 20px;
-
-    border-radius: 15px;
-
-    background:
-        rgba(2,6,23,.5);
-}
-
-.chat-message {
-
-    max-width: 85%;
-
-    padding: 14px 17px;
-
-    margin-bottom: 15px;
-
-    border-radius: 13px;
-
-    line-height: 1.7;
-
-    font-size: 13px;
-
-    white-space: pre-wrap;
-}
-
-.chat-message.ai {
-
-    background:
-        rgba(99,102,241,.12);
-
-    border:
-        1px solid
-        rgba(99,102,241,.15);
-}
-
-.chat-message.user {
-
-    margin-left: auto;
-
-    background:
-        rgba(56,189,248,.1);
-
-    border:
-        1px solid
-        rgba(56,189,248,.12);
-}
-
-.chat-input {
-
-    display: flex;
-
-    gap: 10px;
-}
-
-.chat-input input {
-
-    flex: 1;
-
-    padding: 15px;
-
-    border-radius: 10px;
-
-    border:
-        1px solid
-        rgba(255,255,255,.1);
-
-    outline: none;
-
-    background: #0f172a;
-
-    color: white;
-
-    font-family: inherit;
-}
-
-.chat-input input:focus {
-
-    border-color:
-        rgba(56,189,248,.5);
-}
-
-.chat-input button {
-
-    width: 55px;
-
-    border: none;
-
-    border-radius: 10px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #6366f1,
-            #38bdf8
-        );
-
-    color: white;
-
-    cursor: pointer;
-}
-
-
-/* =====================================================
-   PDF
-===================================================== */
-
-.pdf-section {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 20px;
-}
-
-.pdf-section h2 {
-
-    margin-bottom: 5px;
-}
-
-.pdf-btn {
-
-    min-width: 220px;
-
-    padding: 14px 22px;
-
-    border-radius: 10px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #ef4444,
-            #f97316
-        );
-
-    transition: .2s;
-}
-
-.pdf-btn:hover {
-
-    opacity: .9;
-
-    transform: translateY(-1px);
-}
-
-.pdf-btn:disabled {
-
-    opacity: .65;
-
-    cursor: wait;
-
-    transform: none;
-}
-
-
-/* =====================================================
-   PDF STATUS
-===================================================== */
-
-#pdfStatus {
-
-    margin-top: 10px;
-
-    color: #38bdf8;
-
-    font-size: 13px;
-
-    display: none;
-}
-
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media(max-width:800px) {
-
-    .analysis-grid,
-    .file-analysis-grid,
-    .file-list {
-
-        grid-template-columns: 1fr;
+<!DOCTYPE html><html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Gitora | AI GitHub Repository Analyzer</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
     }
 
-    .analysis-header,
-    .pdf-section {
-
-        flex-direction: column;
-
-        align-items: flex-start;
+    html {
+        scroll-behavior: smooth;
     }
 
-    .file-analysis-title {
-
-        align-items: flex-start;
-
-        flex-direction: column;
+    body {
+        font-family: "Poppins", sans-serif;
+        color: #e5e7eb;
+        background:
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 32%),
+            radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 30%),
+            #020617;
+        min-height: 100vh;
     }
 
-    .chat-message {
-
-        max-width: 100%;
+    a {
+        color: inherit;
+        text-decoration: none;
     }
 
-    .analysis-page {
+    button,
+    input,
+    textarea {
+        font-family: inherit;
+    }
 
-        width: 94%;
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        backdrop-filter: blur(18px);
+        background: rgba(2, 6, 23, 0.88);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
 
-        padding-top: 20px;
+    .nav {
+        width: min(1400px, 94%);
+        margin: auto;
+        min-height: 74px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .brand-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.28);
+    }
+
+    .brand-icon i {
+        color: white;
+        font-size: 19px;
+    }
+
+    .brand-text h1 {
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+
+    .brand-text p {
+        color: #94a3b8;
+        font-size: 10px;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+    }
+
+    .nav-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .nav-badge {
+        padding: 8px 13px;
+        border-radius: 999px;
+        color: #bfdbfe;
+        background: rgba(37, 99, 235, 0.10);
+        border: 1px solid rgba(96, 165, 250, 0.20);
+        font-size: 12px;
+    }
+
+    .container {
+        width: min(1400px, 94%);
+        margin: 0 auto;
+        padding: 38px 0 70px;
+    }
+
+    .repo-hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.13);
+        border-radius: 24px;
+        padding: 30px;
+        background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78));
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.22);
+        margin-bottom: 24px;
+    }
+
+    .repo-hero::after {
+        content: "";
+        position: absolute;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        right: -90px;
+        top: -120px;
+        background: rgba(59, 130, 246, 0.10);
+        filter: blur(4px);
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .eyebrow {
+        color: #60a5fa;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        margin-bottom: 9px;
+    }
+
+    .repo-title {
+        font-size: clamp(25px, 4vw, 40px);
+        line-height: 1.15;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 10px;
+        word-break: break-word;
+    }
+
+    .repo-subtitle {
+        color: #94a3b8;
+        font-size: 14px;
+        word-break: break-word;
+    }
+
+    .repo-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 20px;
+    }
+
+    .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(30, 41, 59, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.13);
+        color: #cbd5e1;
+        font-size: 12px;
+    }
+
+    .meta-pill i {
+        color: #60a5fa;
     }
 
     .section {
+        margin-top: 24px;
+    }
 
+    .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 14px;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 19px;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .section-title i {
+        color: #60a5fa;
+    }
+
+    .section-description {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    .card {
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(15, 23, 42, 0.82);
+        border-radius: 18px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.15);
+    }
+
+    .file-selection {
         padding: 20px;
     }
-}
 
-</style></head><body><div class="analysis-page"><!-- =====================================================
-     REPOSITORY HEADER
-===================================================== --><header class="analysis-header"><div class="repo-title">
+    .file-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 15px;
+    }
 
-    <div class="repo-icon">
+    .file-count {
+        color: #94a3b8;
+        font-size: 13px;
+    }
 
-        <i class="fa-brands fa-github"></i>
+    .file-count strong {
+        color: #e2e8f0;
+    }
 
+    .toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .small-btn,
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn {
+        border: 0;
+        cursor: pointer;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        transition: 0.2s ease;
+    }
+
+    .small-btn {
+        color: #cbd5e1;
+        background: rgba(51, 65, 85, 0.75);
+        border: 1px solid rgba(148, 163, 184, 0.13);
+    }
+
+    .small-btn:hover {
+        background: rgba(71, 85, 105, 0.85);
+    }
+
+    .primary-btn {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.20);
+    }
+
+    .primary-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 13px 30px rgba(37, 99, 235, 0.28);
+    }
+
+    .secondary-btn {
+        color: #bfdbfe;
+        background: rgba(37, 99, 235, 0.10);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+    }
+
+    .secondary-btn:hover {
+        background: rgba(37, 99, 235, 0.18);
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+        transform: none !important;
+    }
+
+    .file-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        gap: 10px;
+        max-height: 450px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .file-item {
+        position: relative;
+    }
+
+    .file-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        min-height: 70px;
+        padding: 12px;
+        border-radius: 12px;
+        cursor: pointer;
+        background: rgba(2, 6, 23, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.10);
+        transition: 0.2s ease;
+    }
+
+    .file-label:hover {
+        border-color: rgba(96, 165, 250, 0.35);
+        background: rgba(15, 23, 42, 0.9);
+    }
+
+    .file-label input {
+        margin-top: 4px;
+        accent-color: #3b82f6;
+    }
+
+    .file-icon {
+        width: 30px;
+        height: 30px;
+        flex-shrink: 0;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: rgba(59, 130, 246, 0.10);
+        color: #60a5fa;
+        font-size: 12px;
+    }
+
+    .file-info {
+        min-width: 0;
+    }
+
+    .file-name {
+        color: #e2e8f0;
+        font-size: 12px;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .file-category {
+        color: #64748b;
+        font-size: 10px;
+        margin-top: 3px;
+    }
+
+    .ai-action {
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        flex-wrap: wrap;
+        padding-top: 15px;
+        border-top: 1px solid rgba(148, 163, 184, 0.09);
+    }
+
+    .ai-hint {
+        color: #64748b;
+        font-size: 11px;
+    }
+
+    .status-box {
+        display: none;
+        margin-top: 16px;
+        padding: 13px 15px;
+        border-radius: 12px;
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        color: #bfdbfe;
+        font-size: 12px;
+    }
+
+    .status-box.show {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .status-box.success {
+        background: rgba(34, 197, 94, 0.08);
+        border-color: rgba(34, 197, 94, 0.18);
+        color: #86efac;
+    }
+
+    .status-box.error {
+        background: rgba(239, 68, 68, 0.08);
+        border-color: rgba(239, 68, 68, 0.20);
+        color: #fca5a5;
+    }
+
+    .spinner {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.20);
+        border-top-color: currentColor;
+        animation: spin 0.8s linear infinite;
+        flex-shrink: 0;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .analysis-container {
+        display: none;
+    }
+
+    .analysis-container.visible {
+        display: block;
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 15px;
+    }
+
+    .analysis-card {
+        padding: 20px;
+        min-height: 170px;
+    }
+
+    .analysis-card.full {
+        grid-column: 1 / -1;
+    }
+
+    .analysis-card h3 {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 14px;
+        color: #f1f5f9;
+        margin-bottom: 12px;
+    }
+
+    .analysis-card h3 i {
+        color: #60a5fa;
+    }
+
+    .analysis-content {
+        color: #a8b4c7;
+        font-size: 12px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .analysis-list {
+        list-style: none;
+        display: grid;
+        gap: 8px;
+    }
+
+    .analysis-list li {
+        position: relative;
+        padding: 9px 11px 9px 28px;
+        color: #a8b4c7;
+        font-size: 12px;
+        line-height: 1.55;
+        background: rgba(2, 6, 23, 0.40);
+        border-radius: 9px;
+        border: 1px solid rgba(148, 163, 184, 0.07);
+    }
+
+    .analysis-list li::before {
+        content: "›";
+        position: absolute;
+        left: 11px;
+        top: 7px;
+        color: #60a5fa;
+        font-size: 17px;
+        font-weight: 700;
+    }
+
+    .rebuild-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .rebuild-card {
+        padding: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.11);
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.82);
+    }
+
+    .rebuild-number {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: rgba(59, 130, 246, 0.11);
+        color: #60a5fa;
+        font-weight: 800;
+        font-size: 13px;
+        margin-bottom: 13px;
+    }
+
+    .rebuild-card h3 {
+        font-size: 15px;
+        color: #f8fafc;
+        margin-bottom: 8px;
+    }
+
+    .rebuild-card p {
+        color: #94a3b8;
+        font-size: 12px;
+        line-height: 1.65;
+        margin-bottom: 10px;
+    }
+
+    .rebuild-detail {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.55;
+    }
+
+    .request-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .request-card {
+        padding: 14px;
+        border-radius: 12px;
+        background: rgba(2, 6, 23, 0.48);
+        border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .request-method {
+        display: inline-block;
+        padding: 4px 7px;
+        border-radius: 6px;
+        background: rgba(59, 130, 246, 0.11);
+        color: #60a5fa;
+        font-size: 10px;
+        font-weight: 700;
+        margin-right: 7px;
+    }
+
+    .request-endpoint {
+        color: #e2e8f0;
+        font-size: 12px;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .request-description {
+        color: #94a3b8;
+        font-size: 11px;
+        line-height: 1.55;
+        margin-top: 7px;
+    }
+
+    .file-analysis-list {
+        display: grid;
+        gap: 13px;
+    }
+
+    .file-analysis-card {
+        padding: 18px;
+    }
+
+    .file-analysis-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .file-analysis-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #f1f5f9;
+        font-size: 13px;
+        font-weight: 650;
+        word-break: break-word;
+    }
+
+    .file-analysis-title i {
+        color: #60a5fa;
+    }
+
+    .file-analysis-body {
+        display: none;
+    }
+
+    .file-analysis-body.visible {
+        display: block;
+    }
+
+    .file-analysis-section {
+        padding: 12px 0;
+        border-top: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .file-analysis-section:first-child {
+        border-top: 0;
+    }
+
+    .file-analysis-section strong {
+        display: block;
+        color: #cbd5e1;
+        font-size: 11px;
+        margin-bottom: 5px;
+    }
+
+    .file-analysis-section span {
+        color: #94a3b8;
+        font-size: 11px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    .source-grid {
+        display: grid;
+        gap: 14px;
+    }
+
+    .source-card {
+        overflow: hidden;
+    }
+
+    .source-header {
+        padding: 13px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: rgba(30, 41, 59, 0.60);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+    }
+
+    .source-path {
+        color: #dbeafe;
+        font-size: 12px;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .source-code {
+        padding: 17px;
+        overflow-x: auto;
+        background: #010409;
+        color: #cbd5e1;
+        font-family: Consolas, Monaco, "Courier New", monospace;
+        font-size: 11px;
+        line-height: 1.65;
+        white-space: pre;
+    }
+
+    .chat-card {
+        padding: 20px;
+    }
+
+    .chat-intro {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-bottom: 13px;
+    }
+
+    .chat-form {
+        display: flex;
+        gap: 10px;
+    }
+
+    .chat-input {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 14px;
+        color: #e2e8f0;
+        background: rgba(2, 6, 23, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.13);
+        border-radius: 11px;
+        outline: none;
+        font-size: 12px;
+    }
+
+    .chat-input:focus {
+        border-color: rgba(96, 165, 250, 0.40);
+    }
+
+    .chat-answer {
+        display: none;
+        margin-top: 15px;
+        padding: 15px;
+        border-radius: 12px;
+        background: rgba(37, 99, 235, 0.07);
+        border: 1px solid rgba(96, 165, 250, 0.13);
+        color: #cbd5e1;
+        font-size: 12px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+    }
+
+    .chat-answer.visible {
+        display: block;
+    }
+
+    .pdf-card {
+        padding: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .pdf-info h3 {
+        color: #f8fafc;
+        font-size: 15px;
+        margin-bottom: 5px;
+    }
+
+    .pdf-info p {
+        color: #64748b;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .empty-state {
+        padding: 28px;
+        text-align: center;
+        color: #64748b;
+        font-size: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.13);
+        border-radius: 13px;
+    }
+
+    .error-text {
+        color: #fca5a5 !important;
+    }
+
+    #topBtn {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        display: none;
+        width: 42px;
+        height: 42px;
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.90);
+        color: #60a5fa;
+        cursor: pointer;
+        z-index: 100;
+    }
+
+    @media (max-width: 900px) {
+        .analysis-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .analysis-card.full {
+            grid-column: auto;
+        }
+
+        .rebuild-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 650px) {
+        .container {
+            width: 92%;
+            padding-top: 22px;
+        }
+
+        .nav {
+            min-height: 65px;
+        }
+
+        .brand-text p,
+        .nav-badge {
+            display: none;
+        }
+
+        .repo-hero {
+            padding: 22px;
+            border-radius: 18px;
+        }
+
+        .file-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chat-form {
+            flex-direction: column;
+        }
+
+        .chat-form .primary-btn {
+            width: 100%;
+        }
+
+        .ai-action {
+            align-items: stretch;
+        }
+
+        .ai-action .primary-btn {
+            width: 100%;
+        }
+    }
+</style>
+
+</head><body><header class="header">
+    <nav class="nav">
+        <a href="{{ url_for('main.index') }}" class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-code"></i>
+            </div>        <div class="brand-text">
+            <h1>Gitora</h1>
+            <p>Code In. Clarity Out.</p>
+        </div>
+    </a>
+
+    <div class="nav-right">
+        <div class="nav-badge">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            AI Repository Analyzer
+        </div>
     </div>
+</nav>
 
-    <div>
+</header><main class="container"><!-- =========================================================
+     REPOSITORY HEADER
+========================================================== -->
 
-        <h1>
-            {{ repository.name }}
-        </h1>
+<section class="repo-hero">
+    <div class="hero-content">
 
-        <p>
+        <div class="eyebrow">
+            <i class="fa-brands fa-github"></i>
+            Repository Analysis
+        </div>
 
-            {{ repository.full_name }}
+        <h2 class="repo-title">
+            {{ repository.name or repository.full_name or "GitHub Repository" }}
+        </h2>
+
+        <p class="repo-subtitle">
+            {{ repository.description or repository.full_name or repository.url or "Analyze, understand and rebuild this repository." }}
+        </p>
+
+        <div class="repo-meta">
+
+            {% if repository.full_name %}
+            <span class="meta-pill">
+                <i class="fa-solid fa-code-branch"></i>
+                {{ repository.full_name }}
+            </span>
+            {% endif %}
 
             {% if repository.default_branch %}
+            <span class="meta-pill">
+                <i class="fa-solid fa-code-branch"></i>
+                {{ repository.default_branch }}
+            </span>
+            {% endif %}
 
-                • {{ repository.default_branch }}
+            {% if repository.language %}
+            <span class="meta-pill">
+                <i class="fa-solid fa-terminal"></i>
+                {{ repository.language }}
+            </span>
+            {% endif %}
+
+            {% if repository.stars is defined %}
+            <span class="meta-pill">
+                <i class="fa-solid fa-star"></i>
+                {{ repository.stars }}
+            </span>
+            {% endif %}
+
+            {% if repository.forks is defined %}
+            <span class="meta-pill">
+                <i class="fa-solid fa-code-fork"></i>
+                {{ repository.forks }}
+            </span>
+            {% endif %}
+
+        </div>
+    </div>
+</section>
+
+
+<!-- =========================================================
+     FILE SELECTION
+========================================================== -->
+
+<section class="section">
+
+    <div class="section-heading">
+        <div>
+            <h2 class="section-title">
+                <i class="fa-solid fa-folder-tree"></i>
+                Select Repository Files
+            </h2>
+
+            <p class="section-description">
+                Choose the source files Gitora should use for AI analysis.
+            </p>
+        </div>
+    </div>
+
+    <div class="card file-selection">
+
+        <form id="fileSelectionForm"
+              action="{{ url_for('main.save_files') }}"
+              method="POST">
+
+            <input type="hidden"
+                   name="repository"
+                   value="{{ repository.full_name or repository.name or '' }}">
+
+            <div class="file-toolbar">
+
+                <div class="file-count">
+                    <strong id="selectedCount">0</strong>
+                    selected
+                    <span style="margin:0 5px;">•</span>
+                    <strong>{{ source_files|length }}</strong>
+                    available
+                </div>
+
+                <div class="toolbar-actions">
+                    <button type="button"
+                            class="small-btn"
+                            onclick="selectAllFiles()">
+                        <i class="fa-solid fa-check-double"></i>
+                        Select All
+                    </button>
+
+                    <button type="button"
+                            class="small-btn"
+                            onclick="clearAllFiles()">
+                        <i class="fa-solid fa-xmark"></i>
+                        Clear
+                    </button>
+
+                    <button type="submit"
+                            class="secondary-btn">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Save Selection
+                    </button>
+                </div>
+            </div>
+
+
+            {% if source_files %}
+
+            <div class="file-grid" id="fileGrid">
+
+                {% for file in source_files %}
+
+                <div class="file-item">
+
+                    <label class="file-label">
+
+                        <input type="checkbox"
+                               name="selected_files"
+                               value="{{ file.path }}"
+                               class="file-checkbox">
+
+                        <div class="file-icon">
+                            {% if file.path.endswith('.py') %}
+                                <i class="fa-brands fa-python"></i>
+                            {% elif file.path.endswith('.js') or file.path.endswith('.jsx') %}
+                                <i class="fa-brands fa-js"></i>
+                            {% elif file.path.endswith('.html') %}
+                                <i class="fa-brands fa-html5"></i>
+                            {% elif file.path.endswith('.css') %}
+                                <i class="fa-brands fa-css3-alt"></i>
+                            {% elif 'json' in file.path %}
+                                <i class="fa-solid fa-file-code"></i>
+                            {% elif 'sql' in file.path %}
+                                <i class="fa-solid fa-database"></i>
+                            {% else %}
+                                <i class="fa-regular fa-file-code"></i>
+                            {% endif %}
+                        </div>
+
+                        <div class="file-info">
+
+                            <div class="file-name">
+                                {{ file.path }}
+                            </div>
+
+                            <div class="file-category">
+                                {% if file.categories %}
+                                    {{ file.categories|join(' • ') }}
+                                {% else %}
+                                    {{ file.type or 'source file' }}
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+                    </label>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+            {% else %}
+
+            <div class="empty-state">
+                <i class="fa-regular fa-folder-open"></i>
+                <br>
+                No repository files were found.
+            </div>
 
             {% endif %}
 
-        </p>
 
-    </div>
+            <div class="ai-action">
 
-</div>
+                <div class="ai-hint">
+                    <i class="fa-solid fa-circle-info"></i>
+                    Select the important source files before running the overall AI analysis.
+                </div>
 
-<a
-    href="https://github.com/{{ repository.full_name }}"
-    target="_blank"
-    rel="noopener noreferrer"
-    class="repo-link"
->
+                <button type="button"
+                        id="fullAIButton"
+                        class="primary-btn"
+                        onclick="runFullAIAnalysis()">
 
-    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    Run Overall AI Analysis
 
-    Open GitHub
+                </button>
 
-</a>
+            </div>
 
-</header><!-- =====================================================
-     FILE SELECTION
-===================================================== --><section class="section"><div class="section-header">
-
-    <h2>
-
-        <i class="fa-solid fa-folder-tree"></i>
-
-        Repository Files
-
-    </h2>
-
-    <span class="file-count">
-
-        {{ files|length }} files
-
-    </span>
-
-</div>
+        </form>
 
 
-<form
-    action="{{ url_for('main.save_files') }}"
-    method="POST"
->
-
-    <input
-        type="hidden"
-        name="repository"
-        value="{{ repository.full_name }}"
-    >
-
-
-    <div class="file-controls">
-
-        <button
-            type="button"
-            onclick="selectAllFiles()"
-        >
-
-            <i class="fa-solid fa-check-double"></i>
-
-            Select All
-
-        </button>
-
-
-        <button
-            type="button"
-            onclick="deselectAllFiles()"
-        >
-
-            <i class="fa-solid fa-xmark"></i>
-
-            Deselect All
-
-        </button>
-
-
-        <span id="selectedCount">
-
-            0 files selected
-
-        </span>
-
-    </div>
-
-
-    <div class="file-list">
-
-        {% for file in files %}
-
-        <label class="file-item">
-
-            <input
-                type="checkbox"
-                name="selected_files"
-                value="{{ file.path }}"
-                {% if file.path in saved_files %}
-                    checked
-                {% endif %}
-                onchange="updateSelectedCount()"
-            >
-
-            <i class="fa-regular fa-file-code"></i>
-
-            <span>
-                {{ file.path }}
-            </span>
-
-        </label>
-
-        {% endfor %}
-
-    </div>
-
-
-    <button
-        type="submit"
-        class="save-files-btn"
-    >
-
-        <i class="fa-solid fa-floppy-disk"></i>
-
-        Save Selected Files
-
-    </button>
-
-</form>
-
-</section><!-- =====================================================
-     OVERALL AI ANALYSIS
-===================================================== --><section class="section"><div class="section-header">
-
-    <h2>
-
-        <i class="fa-solid fa-brain"></i>
-
-        Gitora AI — Project Understanding
-
-    </h2>
-
-</div>
-
-
-<div class="ai-analysis-card">
-
-    <div class="ai-analysis-top">
-
-        <div class="ai-icon">
-
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-
+        <div id="aiStatus"
+             class="status-box">
+            <div class="spinner"></div>
+            <span id="aiStatusText">Preparing AI analysis...</span>
         </div>
 
+    </div>
+</section>
+
+
+<!-- =========================================================
+     AI ANALYSIS
+========================================================== -->
+
+<section id="analysisContainer"
+         class="section analysis-container">
+
+    <div class="section-heading">
+
         <div>
+            <h2 class="section-title">
+                <i class="fa-solid fa-brain"></i>
+                Repository Intelligence
+            </h2>
 
-            <h3>
-                Overall Project Analysis
-            </h3>
-
-            <p>
-                Gitora AI reads the selected source files
-                and explains how the project works.
+            <p class="section-description">
+                AI-generated understanding of the selected repository.
             </p>
-
         </div>
 
     </div>
@@ -1157,2330 +1110,1279 @@ pre {
 
     <div class="analysis-grid">
 
-
-        <div class="analysis-box">
-
+        <article class="card analysis-card full">
             <h3>
-
                 <i class="fa-solid fa-lightbulb"></i>
-
-                What This Project Does
-
+                Project Understanding
             </h3>
 
-            <p id="projectSummary">
-
-                Select files and click Analyze With Gitora AI.
-
-            </p>
-
-        </div>
+            <div id="projectSummary"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
 
-        <div class="analysis-box">
-
+        <article class="card analysis-card">
             <h3>
-
                 <i class="fa-solid fa-layer-group"></i>
-
                 Technology Stack
-
             </h3>
 
-            <p id="technologyStack">
-
-                Waiting for AI analysis.
-
-            </p>
-
-        </div>
+            <div id="technologyStack"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
 
-        <div class="analysis-box">
-
+        <article class="card analysis-card">
             <h3>
-
                 <i class="fa-solid fa-sitemap"></i>
-
                 Architecture
-
             </h3>
 
-            <p id="architecture">
-
-                Waiting for AI analysis.
-
-            </p>
-
-        </div>
+            <div id="architecture"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
 
-        <div class="analysis-box">
-
+        <article class="card analysis-card">
             <h3>
-
-                <i class="fa-solid fa-link"></i>
-
+                <i class="fa-solid fa-box-open"></i>
                 Dependencies
-
             </h3>
 
-            <p id="dependencies">
-
-                Waiting for AI analysis.
-
-            </p>
-
-        </div>
+            <div id="dependencies"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
 
-        <div class="analysis-box">
-
+        <article class="card analysis-card">
             <h3>
-
                 <i class="fa-solid fa-database"></i>
-
                 Database
-
             </h3>
 
-            <p id="database">
-
-                Waiting for AI analysis.
-
-            </p>
-
-        </div>
+            <div id="database"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
 
-        <div class="analysis-box">
-
+        <article class="card analysis-card">
             <h3>
-
                 <i class="fa-solid fa-shield-halved"></i>
-
                 Authentication
-
             </h3>
 
-            <p id="authentication">
+            <div id="authentication"
+                 class="analysis-content">
+                Waiting for analysis...
+            </div>
+        </article>
 
-                Waiting for AI analysis.
 
-            </p>
+        <article class="card analysis-card full">
+            <h3>
+                <i class="fa-solid fa-network-wired"></i>
+                Important API Requests
+            </h3>
+
+            <div id="importantRequests"
+                 class="request-list">
+                <div class="empty-state">
+                    AI analysis has not been run yet.
+                </div>
+            </div>
+        </article>
+
+    </div>
+
+
+    <!-- =====================================================
+         THREE REBUILD OPTIONS
+    ====================================================== -->
+
+    <div class="section">
+
+        <div class="section-heading">
+
+            <div>
+                <h2 class="section-title">
+                    <i class="fa-solid fa-hammer"></i>
+                    Three Ways to Rebuild
+                </h2>
+
+                <p class="section-description">
+                    Different implementation approaches generated from the repository structure.
+                </p>
+            </div>
+
+        </div>
+
+        <div id="rebuildWays"
+             class="rebuild-grid">
+
+            <div class="empty-state">
+                AI analysis has not been run yet.
+            </div>
 
         </div>
 
     </div>
 
 
-    <button
-        type="button"
-        class="run-ai-btn"
-        id="runAIButton"
-        onclick="runFullAIAnalysis()"
-    >
+    <!-- =====================================================
+         FILE-BY-FILE AI ANALYSIS
+    ====================================================== -->
 
-        <i class="fa-solid fa-wand-magic-sparkles"></i>
+    <div class="section">
 
-        Analyze With Gitora AI
+        <div class="section-heading">
 
-    </button>
+            <div>
+                <h2 class="section-title">
+                    <i class="fa-solid fa-file-code"></i>
+                    File-by-File Explanation
+                </h2>
+
+                <p class="section-description">
+                    Ask Gitora AI to explain individual files in detail.
+                </p>
+            </div>
+
+        </div>
+
+        <div class="file-analysis-list">
+
+            {% for file in source_files %}
+
+            <article class="card file-analysis-card"
+                     data-file-path="{{ file.path }}">
+
+                <div class="file-analysis-header">
+
+                    <div class="file-analysis-title">
+                        <i class="fa-regular fa-file-code"></i>
+                        {{ file.path }}
+                    </div>
+
+                    <button type="button"
+                            class="secondary-btn"
+                            onclick="analyzeSingleFile(this)">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        Analyze File
+
+                    </button>
+
+                </div>
+
+                <div class="file-analysis-body">
+
+                    <div class="file-analysis-section">
+                        <strong>Purpose</strong>
+                        <span class="purpose"></span>
+                    </div>
+
+                    <div class="file-analysis-section">
+                        <strong>How It Works</strong>
+                        <span class="how-it-works"></span>
+                    </div>
+
+                    <div class="file-analysis-section">
+                        <strong>Important Functions</strong>
+                        <span class="important-functions"></span>
+                    </div>
+
+                    <div class="file-analysis-section">
+                        <strong>Dependencies</strong>
+                        <span class="dependencies"></span>
+                    </div>
+
+                    <div class="file-analysis-section">
+                        <strong>Connections</strong>
+                        <span class="connections"></span>
+                    </div>
+
+                    <div class="file-analysis-section">
+                        <strong>Improvement Suggestions</strong>
+                        <span class="improvements"></span>
+                    </div>
+
+                </div>
+
+            </article>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
 
 
-    <p id="aiStatus"></p>
+    <!-- =====================================================
+         SOURCE CODE
+    ====================================================== -->
 
-</div>
+    <div class="section">
 
-</section><!-- =====================================================
-     3 WAYS TO REBUILD
-===================================================== --><section class="section"><div class="section-header">
+        <div class="section-heading">
 
-    <h2>
+            <div>
+                <h2 class="section-title">
+                    <i class="fa-solid fa-code"></i>
+                    Selected Source Code
+                </h2>
 
-        <i class="fa-solid fa-code-branch"></i>
+                <p class="section-description">
+                    Source files retrieved from GitHub for inspection.
+                </p>
+            </div>
 
-        3 Ways to Rebuild This Project
+        </div>
 
-    </h2>
+        <div class="source-grid">
 
-    <span class="file-count">
-        AI Generated
-    </span>
+            {% for file in source_files %}
 
-</div>
+            <article class="card source-card">
 
+                <div class="source-header">
 
-<div
-    class="analysis-grid"
-    id="rebuildWays"
->
+                    <span class="source-path">
+                        <i class="fa-regular fa-file-code"></i>
+                        {{ file.path }}
+                    </span>
 
-    <div class="analysis-box">
+                    {% if file.size %}
+                    <span class="file-category">
+                        {{ file.size }} bytes
+                    </span>
+                    {% endif %}
 
-        <h3>
+                </div>
 
-            <i class="fa-solid fa-1"></i>
+                <pre class="source-code">{{ file.content or "Source content unavailable." }}</pre>
 
-            Approach 1
+            </article>
 
-        </h3>
+            {% endfor %}
 
-        <p>
-            Waiting for Gitora AI analysis.
-        </p>
+        </div>
 
     </div>
 
 
-    <div class="analysis-box">
+    <!-- =====================================================
+         ASK GITORA AI
+    ====================================================== -->
 
-        <h3>
+    <div class="section">
 
-            <i class="fa-solid fa-2"></i>
+        <div class="section-heading">
 
-            Approach 2
+            <div>
+                <h2 class="section-title">
+                    <i class="fa-solid fa-comments"></i>
+                    Ask Gitora AI
+                </h2>
 
-        </h3>
+                <p class="section-description">
+                    Ask questions about the selected repository and its source code.
+                </p>
+            </div>
 
-        <p>
-            Waiting for Gitora AI analysis.
-        </p>
+        </div>
 
-    </div>
+        <div class="card chat-card">
 
+            <p class="chat-intro">
+                Example: “How does authentication work in this project?”
+            </p>
 
-    <div class="analysis-box">
+            <form class="chat-form"
+                  onsubmit="askGitoraAI(event)">
 
-        <h3>
+                <input type="text"
+                       id="chatQuestion"
+                       class="chat-input"
+                       placeholder="Ask something about this repository..."
+                       autocomplete="off"
+                       required>
 
-            <i class="fa-solid fa-3"></i>
+                <button type="submit"
+                        id="chatButton"
+                        class="primary-btn">
 
-            Approach 3
+                    <i class="fa-solid fa-paper-plane"></i>
+                    Ask AI
 
-        </h3>
+                </button>
 
-        <p>
-            Waiting for Gitora AI analysis.
-        </p>
+            </form>
 
-    </div>
+            <div id="chatAnswer"
+                 class="chat-answer">
+            </div>
 
-</div>
-
-</section><!-- =====================================================
-     API REQUESTS
-===================================================== --><section class="section"><div class="section-header">
-
-    <h2>
-
-        <i class="fa-solid fa-globe"></i>
-
-        Important API Requests
-
-    </h2>
-
-    <span class="file-count">
-        AI detected
-    </span>
-
-</div>
-
-
-<div
-    class="requests-list"
-    id="importantRequests"
->
-
-    <div class="request-item">
-
-        <strong>
-            Waiting for AI analysis
-        </strong>
-
-        <p>
-            Click "Analyze With Gitora AI" to identify
-            important external API requests.
-        </p>
+        </div>
 
     </div>
 
-</div>
 
-</section><!-- =====================================================
-     FILE-BY-FILE ANALYSIS
-===================================================== --><section class="section"><div class="section-header">
+    <!-- =====================================================
+         PDF REPORT
+    ====================================================== -->
 
-    <h2>
+    <div class="section">
 
-        <i class="fa-solid fa-file-circle-check"></i>
+        <div class="section-heading">
 
-        File-by-File Explanation
+            <div>
+                <h2 class="section-title">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    Repository Report
+                </h2>
 
-    </h2>
+                <p class="section-description">
+                    Generate a downloadable PDF using the repository analysis.
+                </p>
+            </div>
 
-    <span class="file-count">
+        </div>
 
-        {{ source_files|length }} selected
+        <div class="card pdf-card">
 
-    </span>
-
-</div>
-
-
-{% if source_files %}
-
-    {% for file in source_files %}
-
-    <div
-        class="file-analysis-card"
-        data-file-path="{{ file.path }}"
-    >
-
-        <div class="file-analysis-title">
-
-            <div class="file-analysis-name">
-
-                <i class="fa-solid fa-file-code"></i>
+            <div class="pdf-info">
 
                 <h3>
-                    {{ file.path }}
+                    Generate Gitora Analysis Report
                 </h3>
 
-            </div>
-
-
-            <button
-                type="button"
-                class="analyze-file-btn"
-                onclick="analyzeSingleFile(this)"
-                data-file="{{ file.path }}"
-            >
-
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-
-                Analyze with AI
-
-            </button>
-
-        </div>
-
-
-        <div class="file-analysis-grid">
-
-            <div class="explanation-item">
-
-                <strong>
-                    What it does
-                </strong>
-
-                <p class="file-does">
-                    Click Analyze with AI.
+                <p>
+                    Includes project understanding, technology stack,
+                    architecture, dependencies, APIs, rebuild approaches,
+                    file explanations and selected source code.
                 </p>
 
             </div>
 
+            <form action="{{ url_for('main.download_report') }}"
+                  method="POST">
 
-            <div class="explanation-item">
+                <input type="hidden"
+                       name="repository"
+                       value="{{ repository.full_name or repository.name or '' }}">
 
-                <strong>
-                    Why it exists
-                </strong>
+                <button type="submit"
+                        class="primary-btn">
 
-                <p class="file-why">
-                    AI will explain this.
-                </p>
+                    <i class="fa-solid fa-download"></i>
+                    Generate / Download Report
 
-            </div>
+                </button>
 
-
-            <div class="explanation-item">
-
-                <strong>
-                    How it helps the website
-                </strong>
-
-                <p class="file-role">
-                    AI will explain this.
-                </p>
-
-            </div>
-
-
-            <div class="explanation-item">
-
-                <strong>
-                    Dependencies
-                </strong>
-
-                <p class="file-dependencies">
-                    AI will identify dependencies.
-                </p>
-
-            </div>
-
-
-            <div class="explanation-item">
-
-                <strong>
-                    Important API Requests
-                </strong>
-
-                <p class="file-requests">
-                    AI will identify API requests.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <div class="break-box">
-
-            <strong>
-
-                <i class="fa-solid fa-triangle-exclamation"></i>
-
-                What breaks without this file?
-
-            </strong>
-
-            <p class="file-breaks">
-                AI will explain the impact.
-            </p>
+            </form>
 
         </div>
 
     </div>
 
-    {% endfor %}
+</section>
 
-{% else %}
+</main><button id="topBtn"
+title="Back to top">
+<i class="fa-solid fa-arrow-up"></i>
+</button>
 
-    <p style="color:#94a3b8">
-        No files have been selected yet.
-    </p>
+<script>
+    /* ============================================================
+       COMMON HELPERS
+    ============================================================ */
 
-{% endif %}
+    const repositoryName =
+        {{ (repository.full_name or repository.name or '') | tojson }};
 
-</section><!-- =====================================================
-     SOURCE CODE
-===================================================== --><section class="section"><div class="section-header">
 
-    <h2>
+    function getSelectedFiles() {
+        return Array.from(
+            document.querySelectorAll(".file-checkbox:checked")
+        ).map(input => input.value);
+    }
 
-        <i class="fa-solid fa-code"></i>
 
-        Source Code Preview
+    function updateSelectedCount() {
+        const count = getSelectedFiles().length;
 
-    </h2>
+        const element = document.getElementById("selectedCount");
 
-    <span class="file-count">
-
-        {{ source_files|length }} loaded
-
-    </span>
-
-</div>
-
-
-{% if source_files %}
-
-    {% for file in source_files %}
-
-    <div class="source-file">
-
-        <div class="source-header">
-
-            <span>
-
-                <i class="fa-regular fa-file-code"></i>
-
-                {{ file.path }}
-
-            </span>
-
-
-            <span>
-
-                {{ file.categories|join(" • ") }}
-
-            </span>
-
-        </div>
-
-
-        <pre><code>{{ file.content }}</code></pre>
-
-    </div>
-
-    {% endfor %}
-
-{% else %}
-
-    <p style="color:#94a3b8">
-        Save selected files to display their source code.
-    </p>
-
-{% endif %}
-
-</section><!-- =====================================================
-     CHAT
-===================================================== --><section class="section"><div class="section-header">
-
-    <h2>
-
-        <i class="fa-solid fa-comments"></i>
-
-        Ask Gitora AI
-
-    </h2>
-
-</div>
-
-
-<div
-    class="chat-box"
-    id="chatBox"
->
-
-    <div class="chat-message ai">
-
-        <strong>
-            Gitora AI
-        </strong>
-
-        <br><br>
-
-        I can understand the selected source files.
-
-        <br><br>
-
-        Ask questions such as:
-
-        <br><br>
-
-        • What does app.py do?<br>
-        • Why is requests used?<br>
-        • Which file handles weather?<br>
-        • How does the API response reach the website?<br>
-        • What breaks if routes.py is deleted?<br>
-        • Explain the architecture of this project.
-
-    </div>
-
-</div>
-
-
-<div class="chat-input">
-
-    <input
-        type="text"
-        id="questionInput"
-        placeholder="Ask Gitora AI about this repository..."
-    >
-
-
-    <button
-        type="button"
-        onclick="askGitoraAI()"
-    >
-
-        <i class="fa-solid fa-paper-plane"></i>
-
-    </button>
-
-</div>
-
-</section><!-- =====================================================
-     PDF REPORT
-===================================================== --><section class="section pdf-section"><div>
-
-    <h2>
-
-        <i class="fa-solid fa-file-pdf"></i>
-
-        Complete Gitora AI Report
-
-    </h2>
-
-
-    <p style="color:#94a3b8">
-
-        Includes overall project understanding,
-        3 alternative ways to rebuild the project,
-        file-by-file explanations, important API
-        requests, dependencies, database,
-        authentication and impact analysis.
-
-    </p>
-
-
-    <p id="pdfStatus">
-
-        <i class="fa-solid fa-spinner fa-spin"></i>
-
-        Gitora is preparing your PDF report...
-
-    </p>
-
-</div>
-
-
-<form
-    id="pdfReportForm"
-    action="{{ url_for('main.download_report') }}"
-    method="POST"
->
-
-    <input
-        type="hidden"
-        name="repository"
-        value="{{ repository.full_name }}"
-    >
-
-
-    <button
-        type="submit"
-        class="pdf-btn"
-        id="pdfButton"
-    >
-
-        <i class="fa-solid fa-file-pdf"></i>
-
-        Generate PDF Report
-
-    </button>
-
-</form>
-
-</section></div><script>
-
-
-/* =====================================================
-   FILE SELECTION
-===================================================== */
-
-function updateSelectedCount() {
-
-    const checkboxes =
-        document.querySelectorAll(
-            'input[name="selected_files"]'
-        );
-
-    let count = 0;
-
-    checkboxes.forEach(function(checkbox) {
-
-        if (checkbox.checked) {
-
-            count++;
-
+        if (element) {
+            element.textContent = count;
         }
+    }
 
+
+    document.querySelectorAll(".file-checkbox").forEach(checkbox => {
+        checkbox.addEventListener("change", updateSelectedCount);
     });
 
 
-    const selectedCount =
-        document.getElementById(
-            "selectedCount"
-        );
-
-
-    if (selectedCount) {
-
-        selectedCount.textContent =
-            count + " files selected";
-
-    }
-
-}
-
-
-function selectAllFiles() {
-
-    document
-        .querySelectorAll(
-            'input[name="selected_files"]'
-        )
-        .forEach(function(checkbox) {
-
+    function selectAllFiles() {
+        document.querySelectorAll(".file-checkbox").forEach(checkbox => {
             checkbox.checked = true;
-
         });
 
-
-    updateSelectedCount();
-
-}
-
-
-function deselectAllFiles() {
-
-    document
-        .querySelectorAll(
-            'input[name="selected_files"]'
-        )
-        .forEach(function(checkbox) {
-
-            checkbox.checked = false;
-
-        });
-
-
-    updateSelectedCount();
-
-}
-
-
-/* =====================================================
-   FULL AI ANALYSIS
-===================================================== */
-
-async function runFullAIAnalysis() {
-
-    const button =
-        document.getElementById(
-            "runAIButton"
-        );
-
-    const status =
-        document.getElementById(
-            "aiStatus"
-        );
-
-
-    if (!button || !status) {
-
-        return;
-
+        updateSelectedCount();
     }
 
 
-    button.disabled = true;
+    function clearAllFiles() {
+        document.querySelectorAll(".file-checkbox").forEach(checkbox => {
+            checkbox.checked = false;
+        });
+
+        updateSelectedCount();
+    }
 
 
-    button.innerHTML =
-        '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+    function setStatus(message, type = "loading") {
+
+        const box = document.getElementById("aiStatus");
+        const text = document.getElementById("aiStatusText");
+
+        if (!box || !text) {
+            return;
+        }
+
+        box.className = "status-box show";
+
+        if (type === "success") {
+            box.classList.add("success");
+            box.innerHTML =
+                '<i class="fa-solid fa-circle-check"></i>' +
+                '<span id="aiStatusText"></span>';
+        }
+        else if (type === "error") {
+            box.classList.add("error");
+            box.innerHTML =
+                '<i class="fa-solid fa-circle-exclamation"></i>' +
+                '<span id="aiStatusText"></span>';
+        }
+        else {
+            box.innerHTML =
+                '<div class="spinner"></div>' +
+                '<span id="aiStatusText"></span>';
+        }
+
+        const statusText = document.getElementById("aiStatusText");
+
+        if (statusText) {
+            statusText.textContent = message;
+        }
+    }
 
 
-    status.textContent =
-        "Gitora AI is reading the selected source files. Please wait...";
+    function getErrorMessage(data, fallback = "Something went wrong.") {
+
+        if (!data) {
+            return fallback;
+        }
+
+        return (
+            data.error ||
+            data.message ||
+            data.detail ||
+            fallback
+        );
+    }
 
 
-    try {
+    async function readResponse(response) {
 
-        const formData =
-            new FormData();
+        const text = await response.text();
+
+        let data = {};
+
+        try {
+            data = text ? JSON.parse(text) : {};
+        }
+        catch (error) {
+
+            throw new Error(
+                text ||
+                `Server returned HTTP ${response.status}`
+            );
+        }
+
+        if (!response.ok || data.success === false) {
+
+            throw new Error(
+                getErrorMessage(
+                    data,
+                    `Server returned HTTP ${response.status}`
+                )
+            );
+        }
+
+        return data;
+    }
 
 
-        formData.append(
-            "repository",
-            "{{ repository.full_name }}"
+    function safeText(value, fallback = "Not available.") {
+
+        if (value === null || value === undefined) {
+            return fallback;
+        }
+
+        if (Array.isArray(value)) {
+            return value.join("\n");
+        }
+
+        if (typeof value === "object") {
+            return JSON.stringify(value, null, 2);
+        }
+
+        const text = String(value).trim();
+
+        return text || fallback;
+    }
+
+
+    function setText(id, value, fallback = "Not available.") {
+
+        const element = document.getElementById(id);
+
+        if (!element) {
+            return;
+        }
+
+        element.textContent = safeText(value, fallback);
+    }
+
+
+    /* ============================================================
+       OVERALL AI ANALYSIS
+    ============================================================ */
+
+    async function runFullAIAnalysis() {
+
+        const button = document.getElementById("fullAIButton");
+
+        const selectedFiles = getSelectedFiles();
+
+        if (selectedFiles.length === 0) {
+
+            setStatus(
+                "Please select at least one repository file first.",
+                "error"
+            );
+
+            return;
+        }
+
+        button.disabled = true;
+
+        setStatus(
+            "Reading selected files from GitHub...",
+            "loading"
         );
 
+        try {
 
-        document
-            .querySelectorAll(
-                'input[name="selected_files"]:checked'
-            )
-            .forEach(function(checkbox) {
+            const formData = new FormData();
 
-                formData.append(
-                    "selected_files",
-                    checkbox.value
-                );
+            formData.append("repository", repositoryName);
 
+            selectedFiles.forEach(path => {
+                formData.append("selected_files", path);
             });
 
 
-        const response =
-            await fetch(
+            setStatus(
+                "Sending repository context to the AI...",
+                "loading"
+            );
 
+
+            const response = await fetch(
                 "{{ url_for('main.ai_analyze') }}",
-
                 {
-
                     method: "POST",
-
                     body: formData
-
                 }
-
             );
 
 
-        if (!response.ok) {
+            setStatus(
+                "AI is analyzing architecture, dependencies and project structure...",
+                "loading"
+            );
 
-            throw new Error(
-                "Server returned HTTP " +
-                response.status
+
+            const data = await readResponse(response);
+
+
+            const analysis =
+                data.analysis ||
+                data.data ||
+                data;
+
+
+            window.gitoraAnalysis = analysis;
+
+
+            renderOverallAnalysis(analysis);
+
+
+            document
+                .getElementById("analysisContainer")
+                .classList.add("visible");
+
+
+            setStatus(
+                "AI repository analysis completed successfully.",
+                "success"
+            );
+
+
+            document
+                .getElementById("analysisContainer")
+                .scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+
+        }
+        catch (error) {
+
+            console.error("Overall AI error:", error);
+
+            setStatus(
+                error.message ||
+                "AI analysis failed.",
+                "error"
             );
 
         }
+        finally {
+
+            button.disabled = false;
+
+        }
+    }
 
 
-        const data =
-            await response.json();
+    function renderOverallAnalysis(analysis) {
 
-
-        if (!data.success) {
-
-            status.textContent =
-                data.message ||
-                "AI analysis failed.";
-
-            return;
-
+        if (!analysis) {
+            throw new Error("AI returned an empty analysis.");
         }
 
 
-        const analysis =
-            data.analysis;
+        setText(
+            "projectSummary",
+            analysis.project_summary ||
+            analysis.summary ||
+            analysis.project_understanding
+        );
 
 
-        if (
-            !analysis ||
-            typeof analysis !== "object"
-        ) {
-
-            status.textContent =
-                "Gitora AI returned an invalid analysis.";
-
-            return;
-
-        }
+        setText(
+            "technologyStack",
+            analysis.technology_stack ||
+            analysis.tech_stack ||
+            analysis.technologies
+        );
 
 
-        const projectSummary =
-            document.getElementById(
-                "projectSummary"
-            );
-
-        if (projectSummary) {
-
-            projectSummary.textContent =
-                analysis.project_summary ||
-                "No project summary available.";
-
-        }
+        setText(
+            "architecture",
+            analysis.architecture ||
+            analysis.architecture_overview
+        );
 
 
-        const architecture =
-            document.getElementById(
-                "architecture"
-            );
-
-        if (architecture) {
-
-            architecture.textContent =
-                analysis.architecture ||
-                "Not available.";
-
-        }
+        setText(
+            "dependencies",
+            analysis.dependencies
+        );
 
 
-        const database =
-            document.getElementById(
-                "database"
-            );
-
-        if (database) {
-
-            database.textContent =
-                analysis.database ||
-                "Not available.";
-
-        }
+        setText(
+            "database",
+            analysis.database
+        );
 
 
-        const authentication =
-            document.getElementById(
-                "authentication"
-            );
-
-        if (authentication) {
-
-            authentication.textContent =
-                analysis.authentication ||
-                "Not available.";
-
-        }
-
-
-        const technologyStack =
-            document.getElementById(
-                "technologyStack"
-            );
-
-        if (technologyStack) {
-
-            technologyStack.textContent =
-                formatArray(
-                    analysis.technology_stack
-                );
-
-        }
-
-
-        const dependencies =
-            document.getElementById(
-                "dependencies"
-            );
-
-        if (dependencies) {
-
-            dependencies.textContent =
-                formatArray(
-                    analysis.dependencies
-                );
-
-        }
+        setText(
+            "authentication",
+            analysis.authentication
+        );
 
 
         renderRequests(
             analysis.important_requests ||
-            analysis.api_requests
+            analysis.api_requests ||
+            analysis.important_api_requests
         );
 
 
         renderRebuildWays(
+            analysis.rebuild_options ||
             analysis.rebuild_ways ||
-            analysis.rebuild_options
+            analysis.three_ways_to_rebuild
         );
-
-
-        const fileAnalysis =
-            Array.isArray(
-                analysis.file_analysis
-            )
-            ? analysis.file_analysis
-            : [];
-
-
-        fileAnalysis.forEach(function(item) {
-
-            updateFileCard(item);
-
-        });
-
-
-        status.textContent =
-            "Gitora AI successfully analyzed the selected files.";
-
     }
 
 
-    catch (error) {
+    /* ============================================================
+       REBUILD OPTIONS
+    ============================================================ */
 
-        console.error(
-            "AI ANALYSIS ERROR:",
-            error
-        );
+    function renderRebuildWays(options) {
 
+        const container =
+            document.getElementById("rebuildWays");
 
-        status.textContent =
-            "Unable to connect to Gitora AI. " +
-            "Make sure the AI service is running.";
+        if (!container) {
+            return;
+        }
 
-    }
-
-
-    finally {
-
-        button.disabled = false;
+        container.innerHTML = "";
 
 
-        button.innerHTML =
-            '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze With Gitora AI';
+        if (!Array.isArray(options) || options.length === 0) {
 
-    }
-
-}
-
-
-/* =====================================================
-   3 WAYS TO REBUILD
-===================================================== */
-
-function renderRebuildWays(ways) {
-
-    const container =
-        document.getElementById(
-            "rebuildWays"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    const boxes =
-        container.querySelectorAll(
-            ".analysis-box"
-        );
-
-
-    if (
-        !Array.isArray(ways) ||
-        ways.length === 0
-    ) {
-
-        boxes.forEach(function(box) {
-
-            const paragraph =
-                box.querySelector("p");
-
-
-            if (paragraph) {
-
-                paragraph.textContent =
-                    "Gitora AI did not return a rebuild strategy.";
-
-            }
-
-        });
-
-
-        return;
-
-    }
-
-
-    boxes.forEach(function(box, index) {
-
-        const paragraph =
-            box.querySelector("p");
-
-
-        if (!paragraph) {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                'No rebuild strategies were returned by the AI.' +
+                '</div>';
 
             return;
-
         }
 
 
-        const item =
-            ways[index];
+        options.slice(0, 3).forEach((option, index) => {
 
+            let title = "";
+            let description = "";
+            let technology = "";
+            let time = "";
 
-        if (!item) {
+            if (typeof option === "string") {
 
-            paragraph.textContent =
-                "No strategy generated.";
-
-            return;
-
-        }
-
-
-        if (typeof item === "string") {
-
-            paragraph.textContent =
-                item;
-
-        }
-
-
-        else if (
-            typeof item === "object"
-        ) {
-
-            const title =
-                item.title ||
-                item.name ||
-                item.approach ||
-                "";
-
-
-            const description =
-                item.description ||
-                item.details ||
-                item.method ||
-                item.technology ||
-                "";
-
-
-            if (title) {
-
-                paragraph.textContent =
-                    title +
-                    "\n\n" +
-                    description;
+                title = `Approach ${index + 1}`;
+                description = option;
 
             }
-
-
             else {
 
-                paragraph.textContent =
-                    description ||
-                    JSON.stringify(item);
+                title =
+                    option.title ||
+                    option.name ||
+                    `Approach ${index + 1}`;
 
+                description =
+                    option.description ||
+                    option.approach ||
+                    option.summary ||
+                    "";
+
+                technology =
+                    option.technology ||
+                    option.tech_stack ||
+                    option.stack ||
+                    "";
+
+                time =
+                    option.estimated_time ||
+                    option.time ||
+                    "";
             }
 
-        }
 
-    });
+            const card = document.createElement("article");
 
-}
+            card.className = "rebuild-card";
 
 
-/* =====================================================
-   SINGLE FILE AI ANALYSIS
-===================================================== */
+            card.innerHTML = `
+                <div class="rebuild-number">
+                    ${index + 1}
+                </div>
 
-async function analyzeSingleFile(button) {
+                <h3></h3>
 
-    if (!button) {
+                <p></p>
 
-        return;
-
-    }
-
-
-    const filePath =
-        button.dataset.file;
-
-
-    const card =
-        button.closest(
-            ".file-analysis-card"
-        );
-
-
-    if (!card || !filePath) {
-
-        return;
-
-    }
-
-
-    if (button.disabled) {
-
-        return;
-
-    }
-
-
-    const does =
-        card.querySelector(
-            ".file-does"
-        );
-
-
-    const why =
-        card.querySelector(
-            ".file-why"
-        );
-
-
-    const role =
-        card.querySelector(
-            ".file-role"
-        );
-
-
-    const deps =
-        card.querySelector(
-            ".file-dependencies"
-        );
-
-
-    const requests =
-        card.querySelector(
-            ".file-requests"
-        );
-
-
-    const breaks =
-        card.querySelector(
-            ".file-breaks"
-        );
-
-
-    button.disabled = true;
-
-
-    button.innerHTML =
-        '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
-
-
-    if (does) {
-
-        does.textContent =
-            "Gitora AI is analyzing this file...";
-
-    }
-
-
-    if (why) {
-
-        why.textContent =
-            "Gitora AI is determining why this file exists...";
-
-    }
-
-
-    if (role) {
-
-        role.textContent =
-            "Gitora AI is determining how this file helps the website...";
-
-    }
-
-
-    if (deps) {
-
-        deps.textContent =
-            "Analyzing dependencies...";
-
-    }
-
-
-    if (requests) {
-
-        requests.textContent =
-            "Analyzing API requests and connections...";
-
-    }
-
-
-    if (breaks) {
-
-        breaks.textContent =
-            "Analyzing what would break if this file were removed...";
-
-    }
-
-
-    try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "repository",
-            "{{ repository.full_name }}"
-        );
-
-
-        formData.append(
-            "file_path",
-            filePath
-        );
-
-
-        const response =
-            await fetch(
-
-                "{{ url_for('main.analyze_file') }}",
-
-                {
-
-                    method: "POST",
-
-                    body: formData
-
+                ${
+                    technology
+                    ? `<div class="rebuild-detail">
+                            <strong>Technology:</strong>
+                            ${escapeHtml(safeText(technology))}
+                       </div>`
+                    : ""
                 }
 
-            );
+                ${
+                    time
+                    ? `<div class="rebuild-detail">
+                            <strong>Estimated Time:</strong>
+                            ${escapeHtml(safeText(time))}
+                       </div>`
+                    : ""
+                }
+            `;
 
 
-        if (!response.ok) {
+            card.querySelector("h3").textContent =
+                safeText(title, `Approach ${index + 1}`);
 
-            throw new Error(
-                "Server returned HTTP " +
-                response.status
-            );
+            card.querySelector("p").textContent =
+                safeText(description);
 
-        }
 
-
-        const data =
-            await response.json();
-
-
-        if (!data.success) {
-
-            throw new Error(
-                data.message ||
-                "Unable to analyze this file."
-            );
-
-        }
-
-
-        const analysis =
-            data.analysis ||
-            data;
-
-
-        updateFileCard(
-            analysis,
-            card
-        );
-
-    }
-
-
-    catch (error) {
-
-        console.error(
-            "SINGLE FILE AI ERROR:",
-            error
-        );
-
-
-        if (does) {
-
-            does.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        if (why) {
-
-            why.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        if (role) {
-
-            role.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        if (deps) {
-
-            deps.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        if (requests) {
-
-            requests.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        if (breaks) {
-
-            breaks.textContent =
-                "AI analysis failed.";
-
-        }
-
-
-        alert(
-            error.message ||
-            "Gitora AI could not analyze this file."
-        );
-
-    }
-
-
-    finally {
-
-        button.disabled = false;
-
-
-        button.innerHTML =
-            '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze with AI';
-
-    }
-
-}
-
-
-/* =====================================================
-   UPDATE FILE CARD
-===================================================== */
-
-function updateFileCard(
-    item,
-    suppliedCard = null
-) {
-
-    if (
-        !item ||
-        typeof item !== "object"
-    ) {
-
-        return;
-
-    }
-
-
-    let card =
-        suppliedCard;
-
-
-    /*
-     * AI may return the filename using different keys.
-     */
-
-    const returnedFile =
-        item.file ||
-        item.file_path ||
-        item.filename ||
-        item.path;
-
-
-    if (!card && returnedFile) {
-
-        const allCards =
-            document.querySelectorAll(
-                ".file-analysis-card"
-            );
-
-
-        allCards.forEach(function(candidate) {
-
-            if (
-                candidate.dataset.filePath ===
-                returnedFile
-            ) {
-
-                card = candidate;
-
-            }
+            container.appendChild(card);
 
         });
-
     }
 
 
-    if (!card) {
+    /* ============================================================
+       API REQUESTS
+    ============================================================ */
 
-        return;
+    function renderRequests(requests) {
 
-    }
+        const container =
+            document.getElementById("importantRequests");
 
+        if (!container) {
+            return;
+        }
 
-    const does =
-        card.querySelector(
-            ".file-does"
-        );
+        container.innerHTML = "";
 
 
-    const why =
-        card.querySelector(
-            ".file-why"
-        );
+        if (!Array.isArray(requests) || requests.length === 0) {
 
+            container.innerHTML =
+                '<div class="empty-state">' +
+                'No important API requests were identified.' +
+                '</div>';
 
-    const role =
-        card.querySelector(
-            ".file-role"
-        );
-
-
-    const deps =
-        card.querySelector(
-            ".file-dependencies"
-        );
-
-
-    const requests =
-        card.querySelector(
-            ".file-requests"
-        );
-
-
-    const breaks =
-        card.querySelector(
-            ".file-breaks"
-        );
-
-
-    /*
-     * WHAT IT DOES
-     */
-
-    const whatItDoes =
-        item.what_it_does ||
-        item.description ||
-        item.purpose ||
-        item.function ||
-        "Not identifiable from the available code.";
-
-
-    /*
-     * WHY IT EXISTS
-     */
-
-    const whyItExists =
-        item.why_it_exists ||
-        item.why ||
-        item.reason ||
-        "Not identifiable from the available code.";
-
-
-    /*
-     * HOW IT HELPS THE WEBSITE
-     *
-     * Supports:
-     * website_role
-     * how_it_helps
-     * role
-     * connections
-     */
-
-    const websiteRole =
-        item.website_role ||
-        item.how_it_helps ||
-        item.role ||
-        item.connections ||
-        "Not identifiable from the available code.";
-
-
-    /*
-     * DEPENDENCIES
-     */
-
-    const dependencyValue =
-        item.dependencies ||
-        item.required_files ||
-        item.imports ||
-        [];
-
-
-    /*
-     * IMPORTANT API REQUESTS
-     *
-     * Supports:
-     * important_requests
-     * api_requests
-     * requests
-     */
-
-    const requestValue =
-        item.important_requests ||
-        item.api_requests ||
-        item.requests ||
-        [];
-
-
-    /*
-     * WHAT BREAKS
-     *
-     * Supports:
-     * what_breaks
-     * what_breaks_without_it
-     * impact
-     */
-
-    const breakValue =
-        item.what_breaks ||
-        item.what_breaks_without_it ||
-        item.impact ||
-        item.consequence ||
-        "Not identifiable from the available code.";
-
-
-    if (does) {
-
-        does.textContent =
-            whatItDoes;
-
-    }
-
-
-    if (why) {
-
-        why.textContent =
-            whyItExists;
-
-    }
-
-
-    if (role) {
-
-        role.textContent =
-            websiteRole;
-
-    }
-
-
-    if (deps) {
-
-        deps.textContent =
-            formatArray(
-                dependencyValue
-            );
-
-    }
-
-
-    if (requests) {
-
-        requests.textContent =
-            formatArray(
-                requestValue
-            );
-
-    }
-
-
-    if (breaks) {
-
-        breaks.textContent =
-            breakValue;
-
-    }
-
-
-    /*
-     * Mark the card as successfully analyzed.
-     */
-
-    card.classList.add(
-        "ai-analyzed"
-    );
-
-}
-
-
-/* =====================================================
-   API REQUESTS
-===================================================== */
-
-function renderRequests(requests) {
-
-    const container =
-        document.getElementById(
-            "importantRequests"
-        );
-
-
-    if (!container) {
-
-        return;
-
-    }
-
-
-    container.innerHTML = "";
-
-
-    if (
-        !Array.isArray(requests) ||
-        requests.length === 0
-    ) {
-
-        container.innerHTML = `
-
-            <div class="request-item">
-
-                <strong>
-                    No important external API requests detected
-                </strong>
-
-                <p>
-                    Gitora AI could not identify an important
-                    external API request from the selected files.
-                </p>
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    requests.forEach(function(item) {
-
-        const div =
-            document.createElement(
-                "div"
-            );
-
-
-        div.className =
-            "request-item";
-
-
-        if (typeof item === "string") {
-
-            div.innerHTML = `
-
-                <strong>
-                    API Request
-                </strong>
-
-                <p>
-                    ${escapeHTML(item)}
-                </p>
-
-            `;
-
+            return;
         }
 
 
-        else if (
-            item &&
-            typeof item === "object"
-        ) {
+        requests.forEach(request => {
 
-            div.innerHTML = `
-
-                <strong>
-                    ${escapeHTML(
-                        item.api ||
-                        item.service ||
-                        item.endpoint ||
-                        "External API"
-                    )}
-                </strong>
-
-                <p>
-                    <b>File:</b>
-                    ${escapeHTML(
-                        item.file ||
-                        item.file_path ||
-                        "Not specified"
-                    )}
-                </p>
-
-                <p>
-                    <b>Purpose:</b>
-                    ${escapeHTML(
-                        item.purpose ||
-                        item.why ||
-                        "Not specified"
-                    )}
-                </p>
-
-                <p>
-                    <b>How it is used:</b>
-                    ${escapeHTML(
-                        item.usage ||
-                        item.how_used ||
-                        "Not specified"
-                    )}
-                </p>
-
-            `;
-
-        }
+            let method = "API";
+            let endpoint = "";
+            let description = "";
 
 
-        container.appendChild(
-            div
-        );
+            if (typeof request === "string") {
 
-    });
+                endpoint = request;
 
-}
+            }
+            else {
+
+                method =
+                    request.method ||
+                    request.http_method ||
+                    "API";
+
+                endpoint =
+                    request.endpoint ||
+                    request.url ||
+                    request.path ||
+                    "";
+
+                description =
+                    request.description ||
+                    request.purpose ||
+                    request.explanation ||
+                    "";
+            }
 
 
-/* =====================================================
-   ASK GITORA AI
-===================================================== */
+            const card =
+                document.createElement("div");
 
-async function askGitoraAI() {
-
-    const input =
-        document.getElementById(
-            "questionInput"
-        );
+            card.className = "request-card";
 
 
-    const chat =
-        document.getElementById(
-            "chatBox"
-        );
+            const methodSpan =
+                document.createElement("span");
+
+            methodSpan.className = "request-method";
+            methodSpan.textContent =
+                safeText(method, "API");
 
 
-    if (!input || !chat) {
+            const endpointSpan =
+                document.createElement("span");
 
-        return;
+            endpointSpan.className = "request-endpoint";
+            endpointSpan.textContent =
+                safeText(endpoint, "Endpoint not specified.");
 
+
+            card.appendChild(methodSpan);
+            card.appendChild(endpointSpan);
+
+
+            if (description) {
+
+                const desc =
+                    document.createElement("div");
+
+                desc.className =
+                    "request-description";
+
+                desc.textContent =
+                    safeText(description);
+
+                card.appendChild(desc);
+            }
+
+
+            container.appendChild(card);
+
+        });
     }
 
 
-    const question =
-        input.value.trim();
+    /* ============================================================
+       SINGLE FILE ANALYSIS
+    ============================================================ */
 
+    async function analyzeSingleFile(button) {
 
-    if (!question) {
+        const card =
+            button.closest(".file-analysis-card");
 
-        return;
-
-    }
-
-
-    const userMessage =
-        document.createElement(
-            "div"
-        );
-
-
-    userMessage.className =
-        "chat-message user";
-
-
-    userMessage.innerHTML =
-        "<strong>You</strong><br>" +
-        escapeHTML(question);
-
-
-    chat.appendChild(
-        userMessage
-    );
-
-
-    input.value = "";
-
-
-    const loading =
-        document.createElement(
-            "div"
-        );
-
-
-    loading.className =
-        "chat-message ai";
-
-
-    loading.innerHTML =
-        "<strong>Gitora AI</strong><br>" +
-        "Reading the selected source files...";
-
-
-    chat.appendChild(
-        loading
-    );
-
-
-    chat.scrollTop =
-        chat.scrollHeight;
-
-
-    try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "repository",
-            "{{ repository.full_name }}"
-        );
-
-
-        formData.append(
-            "question",
-            question
-        );
-
-
-        const response =
-            await fetch(
-
-                "{{ url_for('main.ask_ai') }}",
-
-                {
-
-                    method: "POST",
-
-                    body: formData
-
-                }
-
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Server returned HTTP " +
-                response.status
-            );
-
+        if (!card) {
+            return;
         }
 
 
-        const data =
-            await response.json();
+        const filePath =
+            card.dataset.filePath;
 
 
-        if (data.success) {
-
-            loading.innerHTML =
-                "<strong>Gitora AI</strong><br>" +
-                escapeHTML(
-                    data.answer ||
-                    "No answer returned."
-                );
-
+        if (!filePath) {
+            return;
         }
 
 
-        else {
+        const body =
+            card.querySelector(".file-analysis-body");
 
-            loading.innerHTML =
-                "<strong>Gitora AI</strong><br>" +
-                escapeHTML(
-                    data.answer ||
-                    data.message ||
-                    "Unable to answer."
-                );
 
-        }
+        button.disabled = true;
 
-    }
+        button.innerHTML =
+            '<div class="spinner"></div> Analyzing...';
 
-
-    catch (error) {
-
-        console.error(
-            "CHAT ERROR:",
-            error
-        );
-
-
-        loading.innerHTML =
-            "<strong>Gitora AI</strong><br>" +
-            "Gitora AI could not connect to the AI service.";
-
-    }
-
-
-    chat.scrollTop =
-        chat.scrollHeight;
-
-}
-
-
-/* =====================================================
-   PDF GENERATION PROTECTION
-===================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
-
-        updateSelectedCount();
-
-
-        const input =
-            document.getElementById(
-                "questionInput"
-            );
-
-
-        if (input) {
-
-            input.addEventListener(
-                "keydown",
-                function(event) {
-
-                    if (event.key === "Enter") {
-
-                        event.preventDefault();
-
-                        askGitoraAI();
-
-                    }
-
-                }
-            );
-
-        }
-
-
-        /* ---------------------------------------------
-           PDF FORM
-        --------------------------------------------- */
-
-        const pdfForm =
-            document.getElementById(
-                "pdfReportForm"
-            );
-
-
-        const pdfButton =
-            document.getElementById(
-                "pdfButton"
-            );
-
-
-        const pdfStatus =
-            document.getElementById(
-                "pdfStatus"
-            );
-
-
-        if (
-            pdfForm &&
-            pdfButton
-        ) {
-
-            pdfForm.addEventListener(
-                "submit",
-                function(event) {
-
-                    /*
-                     * If the form has already been submitted,
-                     * stop accidental double-click submission.
-                     */
-
-                    if (
-                        pdfForm.dataset.submitting ===
-                        "true"
-                    ) {
-
-                        event.preventDefault();
-
-                        return false;
-
-                    }
-
-
-                    /*
-                     * IMPORTANT:
-                     * Do NOT call event.preventDefault()
-                     * on the first submission.
-                     *
-                     * The browser must continue with the
-                     * normal POST to /download-report.
-                     */
-
-                    pdfForm.dataset.submitting =
-                        "true";
-
-
-                    pdfButton.disabled =
-                        true;
-
-
-                    pdfButton.innerHTML =
-                        '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
-
-
-                    if (pdfStatus) {
-
-                        pdfStatus.style.display =
-                            "block";
-
-
-                        pdfStatus.innerHTML = `
-
-                            <i class="fa-solid fa-spinner fa-spin"></i>
-
-                            Gitora is analyzing the repository
-                            and generating your PDF. This may
-                            take a little while...
-
-                        `;
-
-                    }
-
-                }
-            );
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   ARRAY FORMATTER
-===================================================== */
-
-function formatArray(value) {
-
-    if (
-        value === null ||
-        value === undefined ||
-        value === ""
-    ) {
-
-        return "None identified.";
-
-    }
-
-
-    if (Array.isArray(value)) {
-
-        if (value.length === 0) {
-
-            return "None identified.";
-
-        }
-
-
-        return value
-            .map(function(item) {
-
-                if (
-                    item === null ||
-                    item === undefined
-                ) {
-
-                    return "";
-
-                }
-
-
-                if (
-                    typeof item === "object"
-                ) {
-
-                    /*
-                     * Format API/dependency objects
-                     * in a readable way rather than
-                     * showing [object Object].
-                     */
-
-                    const parts = [];
-
-
-                    if (item.name) {
-
-                        parts.push(
-                            String(item.name)
-                        );
-
-                    }
-
-
-                    if (item.file) {
-
-                        parts.push(
-                            "File: " +
-                            String(item.file)
-                        );
-
-                    }
-
-
-                    if (item.service) {
-
-                        parts.push(
-                            "Service: " +
-                            String(item.service)
-                        );
-
-                    }
-
-
-                    if (item.api) {
-
-                        parts.push(
-                            "API: " +
-                            String(item.api)
-                        );
-
-                    }
-
-
-                    if (item.endpoint) {
-
-                        parts.push(
-                            "Endpoint: " +
-                            String(item.endpoint)
-                        );
-
-                    }
-
-
-                    if (item.purpose) {
-
-                        parts.push(
-                            "Purpose: " +
-                            String(item.purpose)
-                        );
-
-                    }
-
-
-                    if (item.description) {
-
-                        parts.push(
-                            String(item.description)
-                        );
-
-                    }
-
-
-                    if (parts.length > 0) {
-
-                        return parts.join(" — ");
-
-                    }
-
-
-                    try {
-
-                        return JSON.stringify(
-                            item
-                        );
-
-                    }
-
-                    catch (error) {
-
-                        return String(item);
-
-                    }
-
-                }
-
-
-                return String(item);
-
-            })
-            .filter(function(item) {
-
-                return item.trim() !== "";
-
-            })
-            .join(" • ");
-
-    }
-
-
-    if (
-        typeof value === "object"
-    ) {
 
         try {
 
-            const parts = [];
+            const formData =
+                new FormData();
+
+            formData.append(
+                "repository",
+                repositoryName
+            );
+
+            formData.append(
+                "file_path",
+                filePath
+            );
 
 
-            if (value.name) {
-
-                parts.push(
-                    String(value.name)
+            const response =
+                await fetch(
+                    "{{ url_for('main.analyze_file') }}",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
                 );
 
-            }
+
+            const data =
+                await readResponse(response);
 
 
-            if (value.file) {
-
-                parts.push(
-                    "File: " +
-                    String(value.file)
-                );
-
-            }
+            const analysis =
+                data.analysis ||
+                data.data ||
+                data;
 
 
-            if (value.service) {
-
-                parts.push(
-                    "Service: " +
-                    String(value.service)
-                );
-
-            }
+            fillFileAnalysis(
+                card,
+                analysis
+            );
 
 
-            if (value.api) {
-
-                parts.push(
-                    "API: " +
-                    String(value.api)
-                );
-
-            }
+            body.classList.add("visible");
 
 
-            if (value.endpoint) {
+            button.innerHTML =
+                '<i class="fa-solid fa-rotate"></i> Re-analyze';
 
-                parts.push(
-                    "Endpoint: " +
-                    String(value.endpoint)
-                );
-
-            }
-
-
-            if (value.purpose) {
-
-                parts.push(
-                    "Purpose: " +
-                    String(value.purpose)
-                );
-
-            }
-
-
-            if (value.description) {
-
-                parts.push(
-                    String(value.description)
-                );
-
-            }
-
-
-            if (parts.length > 0) {
-
-                return parts.join(" — ");
-
-            }
-
-
-            return JSON.stringify(value);
 
         }
-
         catch (error) {
 
-            return String(value);
+            console.error(
+                "Single file AI error:",
+                error
+            );
+
+
+            alert(
+                error.message ||
+                "Unable to analyze this file."
+            );
+
+
+            button.innerHTML =
+                '<i class="fa-solid fa-magnifying-glass"></i> Analyze File';
 
         }
+        finally {
 
+            button.disabled = false;
+
+        }
     }
 
 
-    return String(value);
+    function fillFileAnalysis(card, analysis) {
 
-}
+        const values = {
+
+            ".purpose":
+                analysis.purpose ||
+                analysis.summary ||
+                analysis.what_it_does,
+
+            ".how-it-works":
+                analysis.how_it_works ||
+                analysis.howItWorks ||
+                analysis.explanation,
+
+            ".important-functions":
+                analysis.important_functions ||
+                analysis.functions ||
+                analysis.key_functions,
+
+            ".dependencies":
+                analysis.dependencies,
+
+            ".connections":
+                analysis.connections ||
+                analysis.related_files ||
+                analysis.integrations,
+
+            ".improvements":
+                analysis.improvements ||
+                analysis.suggestions ||
+                analysis.improvement_suggestions
+        };
 
 
-/* =====================================================
-   SAFE HTML
-===================================================== */
+        Object.entries(values).forEach(
+            ([selector, value]) => {
 
-function escapeHTML(text) {
+                const element =
+                    card.querySelector(selector);
 
-    const div =
-        document.createElement(
-            "div"
+                if (element) {
+                    element.textContent =
+                        safeText(value);
+                }
+
+            }
         );
+    }
 
 
-    div.textContent =
-        text === null ||
-        text === undefined
-            ? ""
-            : String(text);
+    /* ============================================================
+       ASK GITORA AI
+    ============================================================ */
+
+    async function askGitoraAI(event) {
+
+        event.preventDefault();
 
 
-    return div.innerHTML;
+        const input =
+            document.getElementById("chatQuestion");
 
-}
+        const button =
+            document.getElementById("chatButton");
 
-</script></body></html>
+        const answer =
+            document.getElementById("chatAnswer");
+
+
+        const question =
+            input.value.trim();
+
+
+        if (!question) {
+            return;
+        }
+
+
+        button.disabled = true;
+
+        button.innerHTML =
+            '<div class="spinner"></div> Thinking...';
+
+
+        answer.classList.add("visible");
+
+        answer.textContent =
+            "Gitora AI is analyzing the repository context...";
+
+
+        try {
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "repository",
+                repositoryName
+            );
+
+            formData.append(
+                "question",
+                question
+            );
+
+
+            const response =
+                await fetch(
+                    "{{ url_for('main.ask_ai') }}",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await readResponse(response);
+
+
+            answer.textContent =
+                safeText(
+                    data.answer ||
+                    data.response ||
+                    data.message ||
+                    data.result,
+                    "AI did not return an answer."
+                );
+
+        }
+        catch (error) {
+
+            console.error(
+                "Chat AI error:",
+                error
+            );
+
+
+            answer.textContent =
+                error.message ||
+                "Unable to get an AI response.";
+
+            answer.classList.add("error-text");
+
+        }
+        finally {
+
+            button.disabled = false;
+
+            button.innerHTML =
+                '<i class="fa-solid fa-paper-plane"></i> Ask AI';
+
+        }
+    }
+
+
+    /* ============================================================
+       HTML ESCAPE
+    ============================================================ */
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+
+    /* ============================================================
+       BACK TO TOP
+    ============================================================ */
+
+    const topBtn =
+        document.getElementById("topBtn");
+
+
+    window.addEventListener(
+        "scroll",
+        () => {
+
+            if (window.scrollY > 300) {
+                topBtn.style.display = "grid";
+            }
+            else {
+                topBtn.style.display = "none";
+            }
+
+        }
+    );
+
+
+    topBtn.addEventListener(
+        "click",
+        () => {
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+
+        }
+    );
+
+
+    /* ============================================================
+       INITIAL STATE
+    ============================================================ */
+
+    updateSelectedCount();
+
+</script></body>
+</html>

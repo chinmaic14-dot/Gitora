@@ -1,21 +1,32 @@
-.env
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
 
+# Virtual environment
 venv/
 .venv/
+env/
 
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Environment variables
+.env
+.env.*
 
+# Flask
 instance/
 
-.pytest_cache/
-.coverage
-
-.DS_Store
-Thumbs.db
-
+# Database
 *.db
 *.sqlite
 *.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
