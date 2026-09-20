@@ -1,2109 +1,3060 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Gitora | AI GitHub Repository Analyzer</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <title>
+        Gitora | Repository Analysis
+    </title>
 
-<style>
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
 
-    html {
-        scroll-behavior: smooth;
-    }
+    <!-- =====================================================
+         MAIN CSS
+    ====================================================== -->
 
-    body {
-        font-family: "Poppins", sans-serif;
-        color: #e5e7eb;
-        background:
-            radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 32%),
-            radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 30%),
-            #020617;
-        min-height: 100vh;
-    }
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
 
-    a {
-        color: inherit;
-        text-decoration: none;
-    }
 
-    button,
-    input,
-    textarea {
-        font-family: inherit;
-    }
+    <!-- =====================================================
+         FONT AWESOME
+    ====================================================== -->
 
-    .header {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        backdrop-filter: blur(18px);
-        background: rgba(2, 6, 23, 0.88);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-    }
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
-    .nav {
-        width: min(1400px, 94%);
-        margin: auto;
-        min-height: 74px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-    }
 
-    .brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
+    <!-- =====================================================
+         GOOGLE FONT
+    ====================================================== -->
 
-    .brand-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 13px;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(135deg, #2563eb, #7c3aed);
-        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.28);
-    }
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet">
 
-    .brand-icon i {
-        color: white;
-        font-size: 19px;
-    }
 
-    .brand-text h1 {
-        font-size: 21px;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-    }
+    <style>
 
-    .brand-text p {
-        color: #94a3b8;
-        font-size: 10px;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-    }
+        /* =================================================
+           PAGE
+        ================================================= */
 
-    .nav-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+        .analysis-page {
 
-    .nav-badge {
-        padding: 8px 13px;
-        border-radius: 999px;
-        color: #bfdbfe;
-        background: rgba(37, 99, 235, 0.10);
-        border: 1px solid rgba(96, 165, 250, 0.20);
-        font-size: 12px;
-    }
+            min-height: 100vh;
 
-    .container {
-        width: min(1400px, 94%);
-        margin: 0 auto;
-        padding: 38px 0 70px;
-    }
+            padding: 30px 5% 70px;
 
-    .repo-hero {
-        position: relative;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.13);
-        border-radius: 24px;
-        padding: 30px;
-        background:
-            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.78));
-        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.22);
-        margin-bottom: 24px;
-    }
-
-    .repo-hero::after {
-        content: "";
-        position: absolute;
-        width: 250px;
-        height: 250px;
-        border-radius: 50%;
-        right: -90px;
-        top: -120px;
-        background: rgba(59, 130, 246, 0.10);
-        filter: blur(4px);
-    }
-
-    .hero-content {
-        position: relative;
-        z-index: 1;
-    }
-
-    .eyebrow {
-        color: #60a5fa;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 1.6px;
-        text-transform: uppercase;
-        margin-bottom: 9px;
-    }
-
-    .repo-title {
-        font-size: clamp(25px, 4vw, 40px);
-        line-height: 1.15;
-        font-weight: 800;
-        color: #f8fafc;
-        margin-bottom: 10px;
-        word-break: break-word;
-    }
-
-    .repo-subtitle {
-        color: #94a3b8;
-        font-size: 14px;
-        word-break: break-word;
-    }
-
-    .repo-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 9px;
-        margin-top: 20px;
-    }
-
-    .meta-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 8px 12px;
-        border-radius: 10px;
-        background: rgba(30, 41, 59, 0.72);
-        border: 1px solid rgba(148, 163, 184, 0.13);
-        color: #cbd5e1;
-        font-size: 12px;
-    }
-
-    .meta-pill i {
-        color: #60a5fa;
-    }
-
-    .section {
-        margin-top: 24px;
-    }
-
-    .section-heading {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        margin-bottom: 14px;
-    }
-
-    .section-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 19px;
-        font-weight: 700;
-        color: #f8fafc;
-    }
-
-    .section-title i {
-        color: #60a5fa;
-    }
-
-    .section-description {
-        color: #64748b;
-        font-size: 12px;
-        margin-top: 3px;
-    }
-
-    .card {
-        border: 1px solid rgba(148, 163, 184, 0.12);
-        background: rgba(15, 23, 42, 0.82);
-        border-radius: 18px;
-        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.15);
-    }
-
-    .file-selection {
-        padding: 20px;
-    }
-
-    .file-toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-bottom: 15px;
-    }
-
-    .file-count {
-        color: #94a3b8;
-        font-size: 13px;
-    }
-
-    .file-count strong {
-        color: #e2e8f0;
-    }
-
-    .toolbar-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-
-    .small-btn,
-    .primary-btn,
-    .secondary-btn,
-    .danger-btn {
-        border: 0;
-        cursor: pointer;
-        border-radius: 10px;
-        padding: 10px 14px;
-        font-size: 12px;
-        font-weight: 600;
-        transition: 0.2s ease;
-    }
-
-    .small-btn {
-        color: #cbd5e1;
-        background: rgba(51, 65, 85, 0.75);
-        border: 1px solid rgba(148, 163, 184, 0.13);
-    }
-
-    .small-btn:hover {
-        background: rgba(71, 85, 105, 0.85);
-    }
-
-    .primary-btn {
-        color: white;
-        background: linear-gradient(135deg, #2563eb, #7c3aed);
-        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.20);
-    }
-
-    .primary-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 13px 30px rgba(37, 99, 235, 0.28);
-    }
-
-    .secondary-btn {
-        color: #bfdbfe;
-        background: rgba(37, 99, 235, 0.10);
-        border: 1px solid rgba(96, 165, 250, 0.18);
-    }
-
-    .secondary-btn:hover {
-        background: rgba(37, 99, 235, 0.18);
-    }
-
-    button:disabled {
-        cursor: not-allowed;
-        opacity: 0.55;
-        transform: none !important;
-    }
-
-    .file-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-        gap: 10px;
-        max-height: 450px;
-        overflow-y: auto;
-        padding-right: 4px;
-    }
-
-    .file-item {
-        position: relative;
-    }
-
-    .file-label {
-        display: flex;
-        align-items: flex-start;
-        gap: 11px;
-        min-height: 70px;
-        padding: 12px;
-        border-radius: 12px;
-        cursor: pointer;
-        background: rgba(2, 6, 23, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.10);
-        transition: 0.2s ease;
-    }
-
-    .file-label:hover {
-        border-color: rgba(96, 165, 250, 0.35);
-        background: rgba(15, 23, 42, 0.9);
-    }
-
-    .file-label input {
-        margin-top: 4px;
-        accent-color: #3b82f6;
-    }
-
-    .file-icon {
-        width: 30px;
-        height: 30px;
-        flex-shrink: 0;
-        border-radius: 8px;
-        display: grid;
-        place-items: center;
-        background: rgba(59, 130, 246, 0.10);
-        color: #60a5fa;
-        font-size: 12px;
-    }
-
-    .file-info {
-        min-width: 0;
-    }
-
-    .file-name {
-        color: #e2e8f0;
-        font-size: 12px;
-        font-weight: 600;
-        word-break: break-word;
-    }
-
-    .file-category {
-        color: #64748b;
-        font-size: 10px;
-        margin-top: 3px;
-    }
-
-    .ai-action {
-        margin-top: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        flex-wrap: wrap;
-        padding-top: 15px;
-        border-top: 1px solid rgba(148, 163, 184, 0.09);
-    }
-
-    .ai-hint {
-        color: #64748b;
-        font-size: 11px;
-    }
-
-    .status-box {
-        display: none;
-        margin-top: 16px;
-        padding: 13px 15px;
-        border-radius: 12px;
-        background: rgba(37, 99, 235, 0.08);
-        border: 1px solid rgba(96, 165, 250, 0.18);
-        color: #bfdbfe;
-        font-size: 12px;
-    }
-
-    .status-box.show {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .status-box.success {
-        background: rgba(34, 197, 94, 0.08);
-        border-color: rgba(34, 197, 94, 0.18);
-        color: #86efac;
-    }
-
-    .status-box.error {
-        background: rgba(239, 68, 68, 0.08);
-        border-color: rgba(239, 68, 68, 0.20);
-        color: #fca5a5;
-    }
-
-    .spinner {
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.20);
-        border-top-color: currentColor;
-        animation: spin 0.8s linear infinite;
-        flex-shrink: 0;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
         }
-    }
 
-    .analysis-container {
-        display: none;
-    }
 
-    .analysis-container.visible {
-        display: block;
-    }
+        /* =================================================
+           TOP HEADER
+        ================================================= */
 
-    .analysis-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 15px;
-    }
+        .analysis-topbar {
 
-    .analysis-card {
-        padding: 20px;
-        min-height: 170px;
-    }
+            display: flex;
 
-    .analysis-card.full {
-        grid-column: 1 / -1;
-    }
+            justify-content: space-between;
 
-    .analysis-card h3 {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        font-size: 14px;
-        color: #f1f5f9;
-        margin-bottom: 12px;
-    }
+            align-items: center;
 
-    .analysis-card h3 i {
-        color: #60a5fa;
-    }
+            gap: 20px;
 
-    .analysis-content {
-        color: #a8b4c7;
-        font-size: 12px;
-        line-height: 1.75;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
+            margin-bottom: 30px;
 
-    .analysis-list {
-        list-style: none;
-        display: grid;
-        gap: 8px;
-    }
+        }
 
-    .analysis-list li {
-        position: relative;
-        padding: 9px 11px 9px 28px;
-        color: #a8b4c7;
-        font-size: 12px;
-        line-height: 1.55;
-        background: rgba(2, 6, 23, 0.40);
-        border-radius: 9px;
-        border: 1px solid rgba(148, 163, 184, 0.07);
-    }
 
-    .analysis-list li::before {
-        content: "›";
-        position: absolute;
-        left: 11px;
-        top: 7px;
-        color: #60a5fa;
-        font-size: 17px;
-        font-weight: 700;
-    }
+        .back-home {
 
-    .rebuild-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-    }
+            display: inline-flex;
 
-    .rebuild-card {
-        padding: 20px;
-        border: 1px solid rgba(148, 163, 184, 0.11);
-        border-radius: 16px;
-        background: rgba(15, 23, 42, 0.82);
-    }
+            align-items: center;
 
-    .rebuild-number {
-        width: 34px;
-        height: 34px;
-        display: grid;
-        place-items: center;
-        border-radius: 10px;
-        background: rgba(59, 130, 246, 0.11);
-        color: #60a5fa;
-        font-weight: 800;
-        font-size: 13px;
-        margin-bottom: 13px;
-    }
+            gap: 8px;
 
-    .rebuild-card h3 {
-        font-size: 15px;
-        color: #f8fafc;
-        margin-bottom: 8px;
-    }
+            text-decoration: none;
 
-    .rebuild-card p {
-        color: #94a3b8;
-        font-size: 12px;
-        line-height: 1.65;
-        margin-bottom: 10px;
-    }
+        }
 
-    .rebuild-detail {
-        margin-top: 8px;
-        color: #64748b;
-        font-size: 11px;
-        line-height: 1.55;
-    }
 
-    .request-list {
-        display: grid;
-        gap: 10px;
-    }
+        .repo-title-area {
 
-    .request-card {
-        padding: 14px;
-        border-radius: 12px;
-        background: rgba(2, 6, 23, 0.48);
-        border: 1px solid rgba(148, 163, 184, 0.08);
-    }
+            flex: 1;
 
-    .request-method {
-        display: inline-block;
-        padding: 4px 7px;
-        border-radius: 6px;
-        background: rgba(59, 130, 246, 0.11);
-        color: #60a5fa;
-        font-size: 10px;
-        font-weight: 700;
-        margin-right: 7px;
-    }
+        }
 
-    .request-endpoint {
-        color: #e2e8f0;
-        font-size: 12px;
-        font-weight: 600;
-        word-break: break-word;
-    }
 
-    .request-description {
-        color: #94a3b8;
-        font-size: 11px;
-        line-height: 1.55;
-        margin-top: 7px;
-    }
+        .repo-title-area h1 {
 
-    .file-analysis-list {
-        display: grid;
-        gap: 13px;
-    }
+            margin: 0;
 
-    .file-analysis-card {
-        padding: 18px;
-    }
+            font-size: 30px;
 
-    .file-analysis-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-bottom: 12px;
-    }
+        }
 
-    .file-analysis-title {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        color: #f1f5f9;
-        font-size: 13px;
-        font-weight: 650;
-        word-break: break-word;
-    }
 
-    .file-analysis-title i {
-        color: #60a5fa;
-    }
+        .repo-title-area p {
 
-    .file-analysis-body {
-        display: none;
-    }
+            margin: 7px 0 0;
 
-    .file-analysis-body.visible {
-        display: block;
-    }
+            opacity: 0.75;
 
-    .file-analysis-section {
-        padding: 12px 0;
-        border-top: 1px solid rgba(148, 163, 184, 0.08);
-    }
+        }
 
-    .file-analysis-section:first-child {
-        border-top: 0;
-    }
 
-    .file-analysis-section strong {
-        display: block;
-        color: #cbd5e1;
-        font-size: 11px;
-        margin-bottom: 5px;
-    }
+        /* =================================================
+           REPOSITORY CARD
+        ================================================= */
 
-    .file-analysis-section span {
-        color: #94a3b8;
-        font-size: 11px;
-        line-height: 1.65;
-        white-space: pre-wrap;
-    }
+        .repository-card {
 
-    .source-grid {
-        display: grid;
-        gap: 14px;
-    }
+            padding: 25px;
 
-    .source-card {
-        overflow: hidden;
-    }
+            border-radius: 18px;
 
-    .source-header {
-        padding: 13px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        background: rgba(30, 41, 59, 0.60);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.09);
-    }
+            margin-bottom: 25px;
 
-    .source-path {
-        color: #dbeafe;
-        font-size: 12px;
-        font-weight: 600;
-        word-break: break-word;
-    }
+        }
 
-    .source-code {
-        padding: 17px;
-        overflow-x: auto;
-        background: #010409;
-        color: #cbd5e1;
-        font-family: Consolas, Monaco, "Courier New", monospace;
-        font-size: 11px;
-        line-height: 1.65;
-        white-space: pre;
-    }
 
-    .chat-card {
-        padding: 20px;
-    }
+        .repository-info {
 
-    .chat-intro {
-        color: #94a3b8;
-        font-size: 12px;
-        margin-bottom: 13px;
-    }
+            display: grid;
 
-    .chat-form {
-        display: flex;
-        gap: 10px;
-    }
+            grid-template-columns:
+                repeat(auto-fit, minmax(150px, 1fr));
 
-    .chat-input {
-        flex: 1;
-        min-width: 0;
-        padding: 12px 14px;
-        color: #e2e8f0;
-        background: rgba(2, 6, 23, 0.65);
-        border: 1px solid rgba(148, 163, 184, 0.13);
-        border-radius: 11px;
-        outline: none;
-        font-size: 12px;
-    }
+            gap: 15px;
 
-    .chat-input:focus {
-        border-color: rgba(96, 165, 250, 0.40);
-    }
+            margin-top: 20px;
 
-    .chat-answer {
-        display: none;
-        margin-top: 15px;
-        padding: 15px;
-        border-radius: 12px;
-        background: rgba(37, 99, 235, 0.07);
-        border: 1px solid rgba(96, 165, 250, 0.13);
-        color: #cbd5e1;
-        font-size: 12px;
-        line-height: 1.75;
-        white-space: pre-wrap;
-    }
+        }
 
-    .chat-answer.visible {
-        display: block;
-    }
 
-    .pdf-card {
-        padding: 22px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-        flex-wrap: wrap;
-    }
+        .repo-info-item {
 
-    .pdf-info h3 {
-        color: #f8fafc;
-        font-size: 15px;
-        margin-bottom: 5px;
-    }
+            padding: 15px;
 
-    .pdf-info p {
-        color: #64748b;
-        font-size: 11px;
-        line-height: 1.5;
-    }
+            border-radius: 12px;
 
-    .empty-state {
-        padding: 28px;
-        text-align: center;
-        color: #64748b;
-        font-size: 12px;
-        border: 1px dashed rgba(148, 163, 184, 0.13);
-        border-radius: 13px;
-    }
+            background: rgba(255,255,255,0.04);
 
-    .error-text {
-        color: #fca5a5 !important;
-    }
+        }
 
-    #topBtn {
-        position: fixed;
-        right: 22px;
-        bottom: 22px;
-        display: none;
-        width: 42px;
-        height: 42px;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-        border-radius: 12px;
-        background: rgba(15, 23, 42, 0.90);
-        color: #60a5fa;
-        cursor: pointer;
-        z-index: 100;
-    }
 
-    @media (max-width: 900px) {
+        .repo-info-item span {
+
+            display: block;
+
+            font-size: 12px;
+
+            opacity: 0.6;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .repo-info-item strong {
+
+            font-size: 14px;
+
+        }
+
+
+        /* =================================================
+           GLASS CARD
+        ================================================= */
+
+        .gitora-card {
+
+            background: rgba(15, 23, 42, 0.72);
+
+            border: 1px solid rgba(255,255,255,0.08);
+
+            border-radius: 20px;
+
+            padding: 25px;
+
+            margin-bottom: 25px;
+
+            box-shadow:
+                0 20px 50px rgba(0,0,0,0.18);
+
+        }
+
+
+        /* =================================================
+           SECTION HEADER
+        ================================================= */
+
+        .card-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 15px;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .card-header h2 {
+
+            margin: 0;
+
+            font-size: 21px;
+
+        }
+
+
+        .card-header p {
+
+            margin: 5px 0 0;
+
+            opacity: 0.65;
+
+            font-size: 13px;
+
+        }
+
+
+        /* =================================================
+           FILE TOOLBAR
+        ================================================= */
+
+        .file-selection-toolbar {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 15px;
+
+            flex-wrap: wrap;
+
+            margin-bottom: 15px;
+
+        }
+
+
+        .file-selection-title {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 4px;
+
+        }
+
+
+        .file-selection-title strong {
+
+            font-size: 16px;
+
+        }
+
+
+        #fileCount {
+
+            font-size: 12px;
+
+            opacity: 0.6;
+
+        }
+
+
+        .file-selection-actions {
+
+            display: flex;
+
+            gap: 8px;
+
+            flex-wrap: wrap;
+
+        }
+
+
+        .small-action-btn {
+
+            border: 1px solid rgba(255,255,255,0.1);
+
+            background: rgba(255,255,255,0.05);
+
+            color: inherit;
+
+            padding: 9px 13px;
+
+            border-radius: 9px;
+
+            cursor: pointer;
+
+            font-family: inherit;
+
+            font-size: 12px;
+
+            transition: 0.2s;
+
+        }
+
+
+        .small-action-btn:hover {
+
+            background: rgba(255,255,255,0.10);
+
+            transform: translateY(-1px);
+
+        }
+
+
+        /* =================================================
+           SEARCH
+        ================================================= */
+
+        .file-search-box {
+
+            position: relative;
+
+            margin-bottom: 15px;
+
+        }
+
+
+        .file-search-box i {
+
+            position: absolute;
+
+            left: 15px;
+
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            opacity: 0.5;
+
+        }
+
+
+        .file-search-box input {
+
+            width: 100%;
+
+            box-sizing: border-box;
+
+            padding: 13px 15px 13px 42px;
+
+            border-radius: 11px;
+
+            border: 1px solid rgba(255,255,255,0.10);
+
+            background: rgba(255,255,255,0.04);
+
+            color: inherit;
+
+            outline: none;
+
+            font-family: inherit;
+
+        }
+
+
+        .file-search-box input:focus {
+
+            border-color: rgba(99,102,241,0.65);
+
+        }
+
+
+        /* =================================================
+           FILE LIST
+        ================================================= */
+
+        .file-list {
+
+            max-height: 470px;
+
+            overflow-y: auto;
+
+            border: 1px solid rgba(255,255,255,0.07);
+
+            border-radius: 14px;
+
+        }
+
+
+        .file-item {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 12px 15px;
+
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+
+            cursor: pointer;
+
+            transition: background 0.2s;
+
+        }
+
+
+        .file-item:last-child {
+
+            border-bottom: none;
+
+        }
+
+
+        .file-item:hover {
+
+            background: rgba(255,255,255,0.045);
+
+        }
+
+
+        .file-checkbox {
+
+            width: 17px;
+
+            height: 17px;
+
+            flex-shrink: 0;
+
+            cursor: pointer;
+
+        }
+
+
+        .file-icon {
+
+            width: 28px;
+
+            text-align: center;
+
+            opacity: 0.8;
+
+        }
+
+
+        .file-path {
+
+            font-family: Consolas, Monaco, monospace;
+
+            font-size: 13px;
+
+            word-break: break-all;
+
+        }
+
+
+        .hidden-file {
+
+            display: none;
+
+        }
+
+
+        .no-search-result {
+
+            padding: 30px;
+
+            text-align: center;
+
+            opacity: 0.6;
+
+            display: none;
+
+        }
+
+
+        /* =================================================
+           BUTTONS
+        ================================================= */
+
+        .primary-btn {
+
+            border: none;
+
+            cursor: pointer;
+
+            font-family: inherit;
+
+        }
+
+
+        .full-width-btn {
+
+            width: 100%;
+
+            margin-top: 15px;
+
+        }
+
+
+        .secondary-action {
+
+            border: 1px solid rgba(255,255,255,0.10);
+
+            background: rgba(255,255,255,0.05);
+
+            color: inherit;
+
+            padding: 10px 15px;
+
+            border-radius: 10px;
+
+            cursor: pointer;
+
+            font-family: inherit;
+
+        }
+
+
+        /* =================================================
+           STATUS
+        ================================================= */
+
+        .status-box {
+
+            margin-top: 15px;
+
+            padding: 14px;
+
+            border-radius: 12px;
+
+            background: rgba(255,255,255,0.04);
+
+            display: none;
+
+        }
+
+
+        .status-box.show {
+
+            display: block;
+
+        }
+
+
+        .status-success {
+
+            border: 1px solid rgba(34,197,94,0.3);
+
+        }
+
+
+        .status-error {
+
+            border: 1px solid rgba(239,68,68,0.3);
+
+        }
+
+
+        .status-loading {
+
+            border: 1px solid rgba(99,102,241,0.3);
+
+        }
+
+
+        /* =================================================
+           AI RESULTS
+        ================================================= */
+
+        #analysisContainer {
+
+            display: none;
+
+        }
+
+
         .analysis-grid {
-            grid-template-columns: 1fr;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(280px, 1fr));
+
+            gap: 18px;
+
         }
 
-        .analysis-card.full {
-            grid-column: auto;
+
+        .analysis-section {
+
+            padding: 20px;
+
+            border-radius: 15px;
+
+            background: rgba(255,255,255,0.035);
+
+            border: 1px solid rgba(255,255,255,0.06);
+
         }
+
+
+        .analysis-section.full {
+
+            grid-column: 1 / -1;
+
+        }
+
+
+        .analysis-section h3 {
+
+            margin-top: 0;
+
+            margin-bottom: 12px;
+
+            font-size: 17px;
+
+        }
+
+
+        .analysis-content {
+
+            white-space: pre-wrap;
+
+            line-height: 1.7;
+
+            font-size: 14px;
+
+            opacity: 0.9;
+
+        }
+
+
+        /* =================================================
+           FILE ANALYSIS
+        ================================================= */
+
+        .file-analysis-list {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 12px;
+
+        }
+
+
+        .file-analysis-item {
+
+            border: 1px solid rgba(255,255,255,0.07);
+
+            border-radius: 13px;
+
+            overflow: hidden;
+
+        }
+
+
+        .file-analysis-header {
+
+            padding: 14px;
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 10px;
+
+            background: rgba(255,255,255,0.035);
+
+        }
+
+
+        .file-analysis-header strong {
+
+            font-family: Consolas, Monaco, monospace;
+
+            font-size: 13px;
+
+            word-break: break-all;
+
+        }
+
+
+        .file-analysis-body {
+
+            padding: 15px;
+
+            display: none;
+
+        }
+
+
+        .file-analysis-body.show {
+
+            display: block;
+
+        }
+
+
+        /* =================================================
+           CHAT
+        ================================================= */
+
+        .chat-box {
+
+            border: 1px solid rgba(255,255,255,0.07);
+
+            border-radius: 15px;
+
+            overflow: hidden;
+
+        }
+
+
+        #chatMessages {
+
+            min-height: 180px;
+
+            max-height: 400px;
+
+            overflow-y: auto;
+
+            padding: 18px;
+
+        }
+
+
+        .chat-message {
+
+            margin-bottom: 12px;
+
+            padding: 12px 14px;
+
+            border-radius: 11px;
+
+            line-height: 1.6;
+
+            font-size: 14px;
+
+        }
+
+
+        .chat-user {
+
+            background: rgba(99,102,241,0.16);
+
+        }
+
+
+        .chat-ai {
+
+            background: rgba(255,255,255,0.05);
+
+        }
+
+
+        .chat-input-area {
+
+            display: flex;
+
+            gap: 10px;
+
+            padding: 12px;
+
+            border-top: 1px solid rgba(255,255,255,0.07);
+
+        }
+
+
+        .chat-input-area input {
+
+            flex: 1;
+
+            padding: 12px;
+
+            border-radius: 10px;
+
+            border: 1px solid rgba(255,255,255,0.1);
+
+            background: rgba(255,255,255,0.04);
+
+            color: inherit;
+
+            outline: none;
+
+            font-family: inherit;
+
+        }
+
+
+        /* =================================================
+           REBUILD OPTIONS
+        ================================================= */
 
         .rebuild-grid {
-            grid-template-columns: 1fr;
-        }
-    }
 
-    @media (max-width: 650px) {
-        .container {
-            width: 92%;
-            padding-top: 22px;
-        }
+            display: grid;
 
-        .nav {
-            min-height: 65px;
+            grid-template-columns:
+                repeat(auto-fit, minmax(250px, 1fr));
+
+            gap: 15px;
+
         }
 
-        .brand-text p,
-        .nav-badge {
-            display: none;
+
+        .rebuild-card {
+
+            padding: 18px;
+
+            border-radius: 14px;
+
+            background: rgba(255,255,255,0.04);
+
+            border: 1px solid rgba(255,255,255,0.07);
+
         }
 
-        .repo-hero {
-            padding: 22px;
-            border-radius: 18px;
+
+        .rebuild-card h4 {
+
+            margin-top: 0;
+
         }
 
-        .file-grid {
-            grid-template-columns: 1fr;
+
+        /* =================================================
+           PDF
+        ================================================= */
+
+        .pdf-form {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 12px;
+
+            align-items: center;
+
         }
 
-        .chat-form {
-            flex-direction: column;
+
+        /* =================================================
+           EMPTY STATE
+        ================================================= */
+
+        .empty-files {
+
+            padding: 45px 20px;
+
+            text-align: center;
+
+            opacity: 0.65;
+
         }
 
-        .chat-form .primary-btn {
-            width: 100%;
+
+        .empty-files i {
+
+            font-size: 35px;
+
+            margin-bottom: 12px;
+
         }
 
-        .ai-action {
-            align-items: stretch;
+
+        /* =================================================
+           MOBILE
+        ================================================= */
+
+        @media (max-width: 700px) {
+
+            .analysis-page {
+
+                padding: 20px 4% 50px;
+
+            }
+
+
+            .analysis-topbar {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+            }
+
+
+            .repo-title-area h1 {
+
+                font-size: 23px;
+
+            }
+
+
+            .gitora-card {
+
+                padding: 17px;
+
+            }
+
+
+            .file-selection-toolbar {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+            }
+
+
+            .file-selection-actions {
+
+                width: 100%;
+
+            }
+
+
+            .small-action-btn {
+
+                flex: 1;
+
+            }
+
+
+            .chat-input-area {
+
+                flex-direction: column;
+
+            }
+
         }
 
-        .ai-action .primary-btn {
-            width: 100%;
-        }
-    }
-</style>
+    </style>
 
-</head><body><header class="header">
-    <nav class="nav">
-        <a href="{{ url_for('main.index') }}" class="brand">
-            <div class="brand-icon">
-                <i class="fa-solid fa-code"></i>
-            </div>        <div class="brand-text">
-            <h1>Gitora</h1>
-            <p>Code In. Clarity Out.</p>
-        </div>
-    </a>
-
-    <div class="nav-right">
-        <div class="nav-badge">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            AI Repository Analyzer
-        </div>
-    </div>
-</nav>
-
-</header><main class="container"><!-- =========================================================
-     REPOSITORY HEADER
-========================================================== -->
-
-<section class="repo-hero">
-    <div class="hero-content">
-
-        <div class="eyebrow">
-            <i class="fa-brands fa-github"></i>
-            Repository Analysis
-        </div>
-
-        <h2 class="repo-title">
-            {{ repository.name or repository.full_name or "GitHub Repository" }}
-        </h2>
-
-        <p class="repo-subtitle">
-            {{ repository.description or repository.full_name or repository.url or "Analyze, understand and rebuild this repository." }}
-        </p>
-
-        <div class="repo-meta">
-
-            {% if repository.full_name %}
-            <span class="meta-pill">
-                <i class="fa-solid fa-code-branch"></i>
-                {{ repository.full_name }}
-            </span>
-            {% endif %}
-
-            {% if repository.default_branch %}
-            <span class="meta-pill">
-                <i class="fa-solid fa-code-branch"></i>
-                {{ repository.default_branch }}
-            </span>
-            {% endif %}
-
-            {% if repository.language %}
-            <span class="meta-pill">
-                <i class="fa-solid fa-terminal"></i>
-                {{ repository.language }}
-            </span>
-            {% endif %}
-
-            {% if repository.stars is defined %}
-            <span class="meta-pill">
-                <i class="fa-solid fa-star"></i>
-                {{ repository.stars }}
-            </span>
-            {% endif %}
-
-            {% if repository.forks is defined %}
-            <span class="meta-pill">
-                <i class="fa-solid fa-code-fork"></i>
-                {{ repository.forks }}
-            </span>
-            {% endif %}
-
-        </div>
-    </div>
-</section>
+</head>
 
 
-<!-- =========================================================
-     FILE SELECTION
-========================================================== -->
+<body>
 
-<section class="section">
 
-    <div class="section-heading">
-        <div>
-            <h2 class="section-title">
-                <i class="fa-solid fa-folder-tree"></i>
-                Select Repository Files
-            </h2>
+<div class="analysis-page">
 
-            <p class="section-description">
-                Choose the source files Gitora should use for AI analysis.
+
+    <!-- =====================================================
+         TOP BAR
+    ====================================================== -->
+
+    <div class="analysis-topbar">
+
+
+        <a href="{{ url_for('main.index') }}"
+           class="secondary-btn back-home">
+
+            <i class="fa-solid fa-arrow-left"></i>
+
+            Home
+
+        </a>
+
+
+        <div class="repo-title-area">
+
+            <h1>
+
+                <i class="fa-brands fa-github"></i>
+
+                {{ repository.name or repository.full_name or "Repository" }}
+
+            </h1>
+
+
+            <p>
+
+                {{ repository.full_name or "" }}
+
             </p>
+
         </div>
+
     </div>
 
-    <div class="card file-selection">
+
+
+    <!-- =====================================================
+         REPOSITORY INFORMATION
+    ====================================================== -->
+
+    <div class="gitora-card repository-card">
+
+
+        <div class="card-header">
+
+            <div>
+
+                <h2>
+
+                    <i class="fa-solid fa-code-branch"></i>
+
+                    Repository Overview
+
+                </h2>
+
+                <p>
+
+                    Gitora has loaded the repository from GitHub.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="repository-info">
+
+
+            <div class="repo-info-item">
+
+                <span>Name</span>
+
+                <strong>
+                    {{ repository.name or "Unknown" }}
+                </strong>
+
+            </div>
+
+
+            <div class="repo-info-item">
+
+                <span>Owner</span>
+
+                <strong>
+                    {{ repository.owner or "Unknown" }}
+                </strong>
+
+            </div>
+
+
+            <div class="repo-info-item">
+
+                <span>Language</span>
+
+                <strong>
+                    {{ repository.language or "Multiple / Unknown" }}
+                </strong>
+
+            </div>
+
+
+            <div class="repo-info-item">
+
+                <span>Stars</span>
+
+                <strong>
+                    {{ repository.stars if repository.stars is not none else 0 }}
+                </strong>
+
+            </div>
+
+
+            <div class="repo-info-item">
+
+                <span>Forks</span>
+
+                <strong>
+                    {{ repository.forks if repository.forks is not none else 0 }}
+                </strong>
+
+            </div>
+
+
+            <div class="repo-info-item">
+
+                <span>Files Found</span>
+
+                <strong id="totalFilesCount">
+                    {{ files|length if files else 0 }}
+                </strong>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         FILE SELECTION
+    ====================================================== -->
+
+    <div class="gitora-card">
+
+
+        <div class="card-header">
+
+            <div>
+
+                <h2>
+
+                    <i class="fa-solid fa-folder-tree"></i>
+
+                    Select Repository Files
+
+                </h2>
+
+
+                <p>
+
+                    All files retrieved from GitHub are available below.
+                    Select the files you want Gitora AI to analyze.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             FILE SELECTION FORM
+        ================================================= -->
 
         <form id="fileSelectionForm"
               action="{{ url_for('main.save_files') }}"
               method="POST">
 
+
             <input type="hidden"
                    name="repository"
                    value="{{ repository.full_name or repository.name or '' }}">
 
-            <div class="file-toolbar">
 
-                <div class="file-count">
-                    <strong id="selectedCount">0</strong>
-                    selected
-                    <span style="margin:0 5px;">•</span>
-                    <strong>{{ source_files|length }}</strong>
-                    available
+
+            <!-- =============================================
+                 TOOLBAR
+            ============================================== -->
+
+            <div class="file-selection-toolbar">
+
+
+                <div class="file-selection-title">
+
+                    <strong>
+
+                        <i class="fa-solid fa-files"></i>
+
+                        Repository Files
+
+                    </strong>
+
+
+                    <span id="fileCount">
+
+                        {{ files|length if files else 0 }} files
+
+                    </span>
+
                 </div>
 
-                <div class="toolbar-actions">
+
+
+                <div class="file-selection-actions">
+
+
                     <button type="button"
-                            class="small-btn"
+                            class="small-action-btn"
                             onclick="selectAllFiles()">
+
                         <i class="fa-solid fa-check-double"></i>
+
                         Select All
+
                     </button>
+
 
                     <button type="button"
-                            class="small-btn"
+                            class="small-action-btn"
                             onclick="clearAllFiles()">
+
                         <i class="fa-solid fa-xmark"></i>
-                        Clear
+
+                        Clear All
+
                     </button>
 
-                    <button type="submit"
-                            class="secondary-btn">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Save Selection
-                    </button>
+
                 </div>
+
             </div>
 
 
-            {% if source_files %}
 
-            <div class="file-grid" id="fileGrid">
+            <!-- =============================================
+                 SEARCH FILES
+            ============================================== -->
 
-                {% for file in source_files %}
+            <div class="file-search-box">
 
-                <div class="file-item">
+                <i class="fa-solid fa-magnifying-glass"></i>
 
-                    <label class="file-label">
+
+                <input type="text"
+                       id="fileSearch"
+                       placeholder="Search files...">
+
+
+            </div>
+
+
+
+            <!-- =============================================
+                 ALL GITHUB FILES
+            ============================================== -->
+
+            <div class="file-list"
+                 id="fileList">
+
+
+                {% if files %}
+
+
+                    {% for file in files %}
+
+                    <label class="file-item"
+                           data-file-path="{{ file.path|lower }}">
+
 
                         <input type="checkbox"
+                               class="file-checkbox"
                                name="selected_files"
                                value="{{ file.path }}"
-                               class="file-checkbox">
 
-                        <div class="file-icon">
-                            {% if file.path.endswith('.py') %}
+                               {% if saved_paths and file.path in saved_paths %}
+                               checked
+                               {% endif %}
+
+                        >
+
+
+                        <span class="file-icon">
+
+
+                            {% set path_lower = file.path|lower %}
+
+
+                            {% if path_lower.endswith('.py') %}
+
                                 <i class="fa-brands fa-python"></i>
-                            {% elif file.path.endswith('.js') or file.path.endswith('.jsx') %}
+
+
+                            {% elif path_lower.endswith('.js') or path_lower.endswith('.jsx') %}
+
                                 <i class="fa-brands fa-js"></i>
-                            {% elif file.path.endswith('.html') %}
+
+
+                            {% elif path_lower.endswith('.ts') or path_lower.endswith('.tsx') %}
+
+                                <i class="fa-brands fa-js"></i>
+
+
+                            {% elif path_lower.endswith('.html') %}
+
                                 <i class="fa-brands fa-html5"></i>
-                            {% elif file.path.endswith('.css') %}
+
+
+                            {% elif path_lower.endswith('.css') %}
+
                                 <i class="fa-brands fa-css3-alt"></i>
-                            {% elif 'json' in file.path %}
-                                <i class="fa-solid fa-file-code"></i>
-                            {% elif 'sql' in file.path %}
+
+
+                            {% elif path_lower.endswith('.json') or path_lower.endswith('.yaml') or path_lower.endswith('.yml') %}
+
+                                <i class="fa-solid fa-gear"></i>
+
+
+                            {% elif path_lower.endswith('.md') or path_lower.endswith('.txt') %}
+
+                                <i class="fa-solid fa-file-lines"></i>
+
+
+                            {% elif 'test' in path_lower %}
+
+                                <i class="fa-solid fa-vial"></i>
+
+
+                            {% elif 'database' in path_lower or 'db' in path_lower or path_lower.endswith('.sql') %}
+
                                 <i class="fa-solid fa-database"></i>
+
+
                             {% else %}
-                                <i class="fa-regular fa-file-code"></i>
+
+                                <i class="fa-solid fa-file-code"></i>
+
                             {% endif %}
-                        </div>
 
-                        <div class="file-info">
 
-                            <div class="file-name">
-                                {{ file.path }}
-                            </div>
+                        </span>
 
-                            <div class="file-category">
-                                {% if file.categories %}
-                                    {{ file.categories|join(' • ') }}
-                                {% else %}
-                                    {{ file.type or 'source file' }}
-                                {% endif %}
-                            </div>
 
-                        </div>
+                        <span class="file-path">
+
+                            {{ file.path }}
+
+                        </span>
+
 
                     </label>
 
+                    {% endfor %}
+
+
+                {% else %}
+
+
+                    <div class="empty-files">
+
+                        <i class="fa-solid fa-folder-open"></i>
+
+
+                        <h3>
+
+                            No repository files found
+
+                        </h3>
+
+
+                        <p>
+
+                            Gitora could not retrieve the repository file list.
+
+                        </p>
+
+                    </div>
+
+
+                {% endif %}
+
+
+                <div class="no-search-result"
+                     id="noSearchResult">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <p>
+
+                        No files match your search.
+
+                    </p>
+
                 </div>
 
-                {% endfor %}
 
             </div>
 
-            {% else %}
-
-            <div class="empty-state">
-                <i class="fa-regular fa-folder-open"></i>
-                <br>
-                No repository files were found.
-            </div>
-
-            {% endif %}
 
 
-            <div class="ai-action">
+            <!-- =============================================
+                 SAVE BUTTON
+            ============================================== -->
 
-                <div class="ai-hint">
-                    <i class="fa-solid fa-circle-info"></i>
-                    Select the important source files before running the overall AI analysis.
-                </div>
+            <button type="submit"
+                    class="primary-btn full-width-btn">
 
-                <button type="button"
-                        id="fullAIButton"
-                        class="primary-btn"
-                        onclick="runFullAIAnalysis()">
+                <i class="fa-solid fa-floppy-disk"></i>
 
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    Run Overall AI Analysis
+                Save Selected Files
 
-                </button>
+            </button>
 
-            </div>
 
         </form>
 
 
+
+        <!-- =================================================
+             SAVE STATUS
+        ================================================== -->
+
+        <div id="saveStatus"
+             class="status-box">
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         OVERALL AI ANALYSIS
+    ====================================================== -->
+
+    <div class="gitora-card">
+
+
+        <div class="card-header">
+
+            <div>
+
+                <h2>
+
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+                    Overall AI Analysis
+
+                </h2>
+
+
+                <p>
+
+                    Analyze the selected repository files with Gitora AI.
+
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <button type="button"
+                id="fullAIButton"
+                class="primary-btn full-width-btn"
+                onclick="runFullAIAnalysis()">
+
+
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+
+            Run Overall AI Analysis
+
+
+        </button>
+
+
         <div id="aiStatus"
              class="status-box">
-            <div class="spinner"></div>
-            <span id="aiStatusText">Preparing AI analysis...</span>
-        </div>
 
-    </div>
-</section>
+            <span id="aiStatusText">
 
+                Waiting for analysis...
 
-<!-- =========================================================
-     AI ANALYSIS
-========================================================== -->
+            </span>
 
-<section id="analysisContainer"
-         class="section analysis-container">
-
-    <div class="section-heading">
-
-        <div>
-            <h2 class="section-title">
-                <i class="fa-solid fa-brain"></i>
-                Repository Intelligence
-            </h2>
-
-            <p class="section-description">
-                AI-generated understanding of the selected repository.
-            </p>
         </div>
 
     </div>
 
 
-    <div class="analysis-grid">
 
-        <article class="card analysis-card full">
-            <h3>
-                <i class="fa-solid fa-lightbulb"></i>
-                Project Understanding
-            </h3>
+    <!-- =====================================================
+         AI ANALYSIS RESULT
+    ====================================================== -->
 
-            <div id="projectSummary"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
+    <div id="analysisContainer">
 
 
-        <article class="card analysis-card">
-            <h3>
-                <i class="fa-solid fa-layer-group"></i>
-                Technology Stack
-            </h3>
-
-            <div id="technologyStack"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
+        <div class="gitora-card">
 
 
-        <article class="card analysis-card">
-            <h3>
-                <i class="fa-solid fa-sitemap"></i>
-                Architecture
-            </h3>
+            <div class="card-header">
 
-            <div id="architecture"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
+                <div>
 
+                    <h2>
 
-        <article class="card analysis-card">
-            <h3>
-                <i class="fa-solid fa-box-open"></i>
-                Dependencies
-            </h3>
+                        <i class="fa-solid fa-brain"></i>
 
-            <div id="dependencies"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
+                        Repository Understanding
 
+                    </h2>
 
-        <article class="card analysis-card">
-            <h3>
-                <i class="fa-solid fa-database"></i>
-                Database
-            </h3>
+                    <p>
 
-            <div id="database"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
+                        AI-generated understanding of the selected files.
 
+                    </p>
 
-        <article class="card analysis-card">
-            <h3>
-                <i class="fa-solid fa-shield-halved"></i>
-                Authentication
-            </h3>
-
-            <div id="authentication"
-                 class="analysis-content">
-                Waiting for analysis...
-            </div>
-        </article>
-
-
-        <article class="card analysis-card full">
-            <h3>
-                <i class="fa-solid fa-network-wired"></i>
-                Important API Requests
-            </h3>
-
-            <div id="importantRequests"
-                 class="request-list">
-                <div class="empty-state">
-                    AI analysis has not been run yet.
                 </div>
-            </div>
-        </article>
 
-    </div>
-
-
-    <!-- =====================================================
-         THREE REBUILD OPTIONS
-    ====================================================== -->
-
-    <div class="section">
-
-        <div class="section-heading">
-
-            <div>
-                <h2 class="section-title">
-                    <i class="fa-solid fa-hammer"></i>
-                    Three Ways to Rebuild
-                </h2>
-
-                <p class="section-description">
-                    Different implementation approaches generated from the repository structure.
-                </p>
             </div>
 
-        </div>
-
-        <div id="rebuildWays"
-             class="rebuild-grid">
-
-            <div class="empty-state">
-                AI analysis has not been run yet.
-            </div>
-
-        </div>
-
-    </div>
 
 
-    <!-- =====================================================
-         FILE-BY-FILE AI ANALYSIS
-    ====================================================== -->
+            <div class="analysis-grid">
 
-    <div class="section">
 
-        <div class="section-heading">
+                <div class="analysis-section full">
 
-            <div>
-                <h2 class="section-title">
-                    <i class="fa-solid fa-file-code"></i>
-                    File-by-File Explanation
-                </h2>
+                    <h3>
 
-                <p class="section-description">
-                    Ask Gitora AI to explain individual files in detail.
-                </p>
-            </div>
+                        <i class="fa-solid fa-lightbulb"></i>
 
-        </div>
+                        Project Summary
 
-        <div class="file-analysis-list">
+                    </h3>
 
-            {% for file in source_files %}
 
-            <article class="card file-analysis-card"
-                     data-file-path="{{ file.path }}">
+                    <div id="projectSummary"
+                         class="analysis-content">
 
-                <div class="file-analysis-header">
-
-                    <div class="file-analysis-title">
-                        <i class="fa-regular fa-file-code"></i>
-                        {{ file.path }}
                     </div>
 
-                    <button type="button"
-                            class="secondary-btn"
-                            onclick="analyzeSingleFile(this)">
+                </div>
 
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        Analyze File
+
+
+                <div class="analysis-section">
+
+                    <h3>
+
+                        <i class="fa-solid fa-layer-group"></i>
+
+                        Technology Stack
+
+                    </h3>
+
+
+                    <div id="technologyStack"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section">
+
+                    <h3>
+
+                        <i class="fa-solid fa-sitemap"></i>
+
+                        Architecture
+
+                    </h3>
+
+
+                    <div id="architecture"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section">
+
+                    <h3>
+
+                        <i class="fa-solid fa-box"></i>
+
+                        Dependencies
+
+                    </h3>
+
+
+                    <div id="dependencies"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section">
+
+                    <h3>
+
+                        <i class="fa-solid fa-database"></i>
+
+                        Database
+
+                    </h3>
+
+
+                    <div id="database"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section">
+
+                    <h3>
+
+                        <i class="fa-solid fa-lock"></i>
+
+                        Authentication
+
+                    </h3>
+
+
+                    <div id="authentication"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section full">
+
+                    <h3>
+
+                        <i class="fa-solid fa-plug"></i>
+
+                        Important API Requests
+
+                    </h3>
+
+
+                    <div id="importantRequests"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section full">
+
+                    <h3>
+
+                        <i class="fa-solid fa-route"></i>
+
+                        Routing
+
+                    </h3>
+
+
+                    <div id="routing"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section full">
+
+                    <h3>
+
+                        <i class="fa-solid fa-terminal"></i>
+
+                        Run Instructions
+
+                    </h3>
+
+
+                    <div id="runInstructions"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-section full">
+
+                    <h3>
+
+                        <i class="fa-solid fa-folder-tree"></i>
+
+                        Folder Structure
+
+                    </h3>
+
+
+                    <div id="folderStructure"
+                         class="analysis-content">
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             REBUILD OPTIONS
+        ================================================== -->
+
+        <div class="gitora-card">
+
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+
+                        <i class="fa-solid fa-code-branch"></i>
+
+                        Three Ways to Rebuild
+
+                    </h2>
+
+                    <p>
+
+                        AI-generated approaches for rebuilding the project.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div id="rebuildOptions"
+                 class="rebuild-grid">
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             FILE-BY-FILE ANALYSIS
+        ================================================== -->
+
+        <div class="gitora-card">
+
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+
+                        <i class="fa-solid fa-file-code"></i>
+
+                        File-by-File Analysis
+
+                    </h2>
+
+                    <p>
+
+                        Ask Gitora AI to explain individual selected files.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div id="fileAnalysisList"
+                 class="file-analysis-list">
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             REPOSITORY AI CHAT
+        ================================================== -->
+
+        <div class="gitora-card">
+
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+
+                        <i class="fa-solid fa-comments"></i>
+
+                        Repository AI Chat
+
+                    </h2>
+
+                    <p>
+
+                        Ask questions about the analyzed repository.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="chat-box">
+
+
+                <div id="chatMessages">
+
+                    <div class="chat-message chat-ai">
+
+                        <strong>Gitora AI</strong>
+
+                        <br>
+
+                        Ask me anything about this repository.
+
+                    </div>
+
+                </div>
+
+
+                <div class="chat-input-area">
+
+
+                    <input type="text"
+                           id="chatInput"
+                           placeholder="Ask about the repository...">
+
+
+                    <button type="button"
+                            class="primary-btn"
+                            onclick="askRepositoryAI()">
+
+                        <i class="fa-solid fa-paper-plane"></i>
+
+                        Ask
 
                     </button>
 
-                </div>
-
-                <div class="file-analysis-body">
-
-                    <div class="file-analysis-section">
-                        <strong>Purpose</strong>
-                        <span class="purpose"></span>
-                    </div>
-
-                    <div class="file-analysis-section">
-                        <strong>How It Works</strong>
-                        <span class="how-it-works"></span>
-                    </div>
-
-                    <div class="file-analysis-section">
-                        <strong>Important Functions</strong>
-                        <span class="important-functions"></span>
-                    </div>
-
-                    <div class="file-analysis-section">
-                        <strong>Dependencies</strong>
-                        <span class="dependencies"></span>
-                    </div>
-
-                    <div class="file-analysis-section">
-                        <strong>Connections</strong>
-                        <span class="connections"></span>
-                    </div>
-
-                    <div class="file-analysis-section">
-                        <strong>Improvement Suggestions</strong>
-                        <span class="improvements"></span>
-                    </div>
 
                 </div>
 
-            </article>
 
-            {% endfor %}
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         SOURCE CODE
-    ====================================================== -->
-
-    <div class="section">
-
-        <div class="section-heading">
-
-            <div>
-                <h2 class="section-title">
-                    <i class="fa-solid fa-code"></i>
-                    Selected Source Code
-                </h2>
-
-                <p class="section-description">
-                    Source files retrieved from GitHub for inspection.
-                </p>
             </div>
 
         </div>
 
-        <div class="source-grid">
 
-            {% for file in source_files %}
 
-            <article class="card source-card">
+        <!-- =================================================
+             PDF REPORT
+        ================================================== -->
 
-                <div class="source-header">
+        <div class="gitora-card">
 
-                    <span class="source-path">
-                        <i class="fa-regular fa-file-code"></i>
-                        {{ file.path }}
-                    </span>
 
-                    {% if file.size %}
-                    <span class="file-category">
-                        {{ file.size }} bytes
-                    </span>
-                    {% endif %}
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+
+                        <i class="fa-solid fa-file-pdf"></i>
+
+                        Generate Report
+
+                    </h2>
+
+
+                    <p>
+
+                        Download the repository analysis as a PDF.
+
+                    </p>
 
                 </div>
 
-                <pre class="source-code">{{ file.content or "Source content unavailable." }}</pre>
-
-            </article>
-
-            {% endfor %}
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         ASK GITORA AI
-    ====================================================== -->
-
-    <div class="section">
-
-        <div class="section-heading">
-
-            <div>
-                <h2 class="section-title">
-                    <i class="fa-solid fa-comments"></i>
-                    Ask Gitora AI
-                </h2>
-
-                <p class="section-description">
-                    Ask questions about the selected repository and its source code.
-                </p>
             </div>
 
-        </div>
-
-        <div class="card chat-card">
-
-            <p class="chat-intro">
-                Example: “How does authentication work in this project?”
-            </p>
-
-            <form class="chat-form"
-                  onsubmit="askGitoraAI(event)">
-
-                <input type="text"
-                       id="chatQuestion"
-                       class="chat-input"
-                       placeholder="Ask something about this repository..."
-                       autocomplete="off"
-                       required>
-
-                <button type="submit"
-                        id="chatButton"
-                        class="primary-btn">
-
-                    <i class="fa-solid fa-paper-plane"></i>
-                    Ask AI
-
-                </button>
-
-            </form>
-
-            <div id="chatAnswer"
-                 class="chat-answer">
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         PDF REPORT
-    ====================================================== -->
-
-    <div class="section">
-
-        <div class="section-heading">
-
-            <div>
-                <h2 class="section-title">
-                    <i class="fa-solid fa-file-pdf"></i>
-                    Repository Report
-                </h2>
-
-                <p class="section-description">
-                    Generate a downloadable PDF using the repository analysis.
-                </p>
-            </div>
-
-        </div>
-
-        <div class="card pdf-card">
-
-            <div class="pdf-info">
-
-                <h3>
-                    Generate Gitora Analysis Report
-                </h3>
-
-                <p>
-                    Includes project understanding, technology stack,
-                    architecture, dependencies, APIs, rebuild approaches,
-                    file explanations and selected source code.
-                </p>
-
-            </div>
 
             <form action="{{ url_for('main.download_report') }}"
-                  method="POST">
+                  method="POST"
+                  class="pdf-form">
+
 
                 <input type="hidden"
                        name="repository"
                        value="{{ repository.full_name or repository.name or '' }}">
 
+
+                <input type="hidden"
+                       name="ai_analysis"
+                       id="pdfAIAnalysis">
+
+
+                <input type="hidden"
+                       name="selected_files"
+                       id="pdfSelectedFiles">
+
+
                 <button type="submit"
                         class="primary-btn">
 
                     <i class="fa-solid fa-download"></i>
-                    Generate / Download Report
+
+                    Generate & Download PDF Report
 
                 </button>
+
 
             </form>
 
         </div>
 
+
     </div>
 
-</section>
 
-</main><button id="topBtn"
-title="Back to top">
-<i class="fa-solid fa-arrow-up"></i>
-</button>
+</div>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
 
 <script>
-    /* ============================================================
-       COMMON HELPERS
-    ============================================================ */
+
+    /* =====================================================
+       BASIC DATA
+    ====================================================== */
 
     const repositoryName =
         {{ (repository.full_name or repository.name or '') | tojson }};
 
 
-    function getSelectedFiles() {
-        return Array.from(
-            document.querySelectorAll(".file-checkbox:checked")
-        ).map(input => input.value);
-    }
+    let latestAIAnalysis = null;
 
+
+
+    /* =====================================================
+       FILE COUNT
+    ====================================================== */
 
     function updateSelectedCount() {
-        const count = getSelectedFiles().length;
 
-        const element = document.getElementById("selectedCount");
+        const checkboxes =
+            document.querySelectorAll(".file-checkbox");
 
-        if (element) {
-            element.textContent = count;
+        const checked =
+            document.querySelectorAll(
+                ".file-checkbox:checked"
+            ).length;
+
+        const fileCount =
+            document.getElementById("fileCount");
+
+        if (fileCount) {
+
+            fileCount.textContent =
+                checked +
+                " selected / " +
+                checkboxes.length +
+                " files";
+
         }
+
     }
 
 
-    document.querySelectorAll(".file-checkbox").forEach(checkbox => {
-        checkbox.addEventListener("change", updateSelectedCount);
-    });
 
+    /* =====================================================
+       SELECT ALL
+    ====================================================== */
 
     function selectAllFiles() {
-        document.querySelectorAll(".file-checkbox").forEach(checkbox => {
-            checkbox.checked = true;
-        });
+
+        document
+            .querySelectorAll(".file-checkbox")
+            .forEach(function (checkbox) {
+
+                checkbox.checked = true;
+
+            });
+
 
         updateSelectedCount();
+
     }
 
+
+
+    /* =====================================================
+       CLEAR ALL
+    ====================================================== */
 
     function clearAllFiles() {
-        document.querySelectorAll(".file-checkbox").forEach(checkbox => {
-            checkbox.checked = false;
-        });
+
+        document
+            .querySelectorAll(".file-checkbox")
+            .forEach(function (checkbox) {
+
+                checkbox.checked = false;
+
+            });
+
 
         updateSelectedCount();
+
     }
 
 
-    function setStatus(message, type = "loading") {
 
-        const box = document.getElementById("aiStatus");
-        const text = document.getElementById("aiStatusText");
+    /* =====================================================
+       FILE SEARCH
+    ====================================================== */
 
-        if (!box || !text) {
-            return;
-        }
-
-        box.className = "status-box show";
-
-        if (type === "success") {
-            box.classList.add("success");
-            box.innerHTML =
-                '<i class="fa-solid fa-circle-check"></i>' +
-                '<span id="aiStatusText"></span>';
-        }
-        else if (type === "error") {
-            box.classList.add("error");
-            box.innerHTML =
-                '<i class="fa-solid fa-circle-exclamation"></i>' +
-                '<span id="aiStatusText"></span>';
-        }
-        else {
-            box.innerHTML =
-                '<div class="spinner"></div>' +
-                '<span id="aiStatusText"></span>';
-        }
-
-        const statusText = document.getElementById("aiStatusText");
-
-        if (statusText) {
-            statusText.textContent = message;
-        }
-    }
+    const fileSearch =
+        document.getElementById("fileSearch");
 
 
-    function getErrorMessage(data, fallback = "Something went wrong.") {
+    if (fileSearch) {
 
-        if (!data) {
-            return fallback;
-        }
+        fileSearch.addEventListener(
+            "input",
+            function () {
 
-        return (
-            data.error ||
-            data.message ||
-            data.detail ||
-            fallback
+                const query =
+                    this.value
+                        .trim()
+                        .toLowerCase();
+
+
+                const items =
+                    document.querySelectorAll(
+                        ".file-item"
+                    );
+
+
+                let visibleCount = 0;
+
+
+                items.forEach(function (item) {
+
+                    const path =
+                        item.getAttribute(
+                            "data-file-path"
+                        ) || "";
+
+
+                    if (
+                        !query ||
+                        path.includes(query)
+                    ) {
+
+                        item.classList.remove(
+                            "hidden-file"
+                        );
+
+                        visibleCount++;
+
+                    } else {
+
+                        item.classList.add(
+                            "hidden-file"
+                        );
+
+                    }
+
+                });
+
+
+                const noResult =
+                    document.getElementById(
+                        "noSearchResult"
+                    );
+
+
+                if (noResult) {
+
+                    if (
+                        query &&
+                        visibleCount === 0
+                    ) {
+
+                        noResult.style.display =
+                            "block";
+
+                    } else {
+
+                        noResult.style.display =
+                            "none";
+
+                    }
+
+                }
+
+            }
         );
+
     }
 
+
+
+    /* =====================================================
+       CHECKBOX LISTENER
+    ====================================================== */
+
+    document.addEventListener(
+        "change",
+        function (event) {
+
+            if (
+                event.target.classList.contains(
+                    "file-checkbox"
+                )
+            ) {
+
+                updateSelectedCount();
+
+            }
+
+        }
+    );
+
+
+    updateSelectedCount();
+
+
+
+    /* =====================================================
+       STATUS
+    ====================================================== */
+
+    function setStatus(
+        elementId,
+        message,
+        type
+    ) {
+
+        const element =
+            document.getElementById(elementId);
+
+
+        if (!element) return;
+
+
+        element.className =
+            "status-box show " +
+            (type ? "status-" + type : "");
+
+
+        element.innerHTML =
+            message;
+
+    }
+
+
+
+    /* =====================================================
+       SAVE SELECTED FILES
+    ====================================================== */
+
+    const fileSelectionForm =
+        document.getElementById(
+            "fileSelectionForm"
+        );
+
+
+    if (fileSelectionForm) {
+
+        fileSelectionForm.addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+
+                const selected =
+                    document.querySelectorAll(
+                        ".file-checkbox:checked"
+                    );
+
+
+                if (selected.length === 0) {
+
+                    setStatus(
+                        "saveStatus",
+                        "<i class='fa-solid fa-circle-exclamation'></i> Please select at least one file.",
+                        "error"
+                    );
+
+                    return;
+
+                }
+
+
+                const formData =
+                    new FormData(
+                        fileSelectionForm
+                    );
+
+
+                setStatus(
+                    "saveStatus",
+                    "<i class='fa-solid fa-spinner fa-spin'></i> Saving selected files...",
+                    "loading"
+                );
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "{{ url_for('main.save_files') }}",
+                            {
+                                method: "POST",
+                                body: formData
+                            }
+                        );
+
+
+                    const data =
+                        await readResponse(
+                            response
+                        );
+
+
+                    if (!response.ok || data.error) {
+
+                        throw new Error(
+                            data.error ||
+                            data.message ||
+                            "Unable to save selected files."
+                        );
+
+                    }
+
+
+                    setStatus(
+                        "saveStatus",
+                        "<i class='fa-solid fa-circle-check'></i> " +
+                        selected.length +
+                        " file(s) saved successfully.",
+                        "success"
+                    );
+
+
+                } catch (error) {
+
+                    setStatus(
+                        "saveStatus",
+                        "<i class='fa-solid fa-circle-exclamation'></i> " +
+                        escapeHTML(error.message),
+                        "error"
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+
+    /* =====================================================
+       READ RESPONSE
+    ====================================================== */
 
     async function readResponse(response) {
 
-        const text = await response.text();
+        const text =
+            await response.text();
 
-        let data = {};
+
+        if (!text) {
+
+            return {};
+
+        }
+
 
         try {
-            data = text ? JSON.parse(text) : {};
-        }
-        catch (error) {
 
-            throw new Error(
-                text ||
-                `Server returned HTTP ${response.status}`
-            );
-        }
+            return JSON.parse(text);
 
-        if (!response.ok || data.success === false) {
+        } catch (error) {
 
-            throw new Error(
-                getErrorMessage(
-                    data,
-                    `Server returned HTTP ${response.status}`
-                )
-            );
+            return {
+
+                error:
+                    text.substring(0, 1000)
+
+            };
+
         }
 
-        return data;
     }
 
 
-    function safeText(value, fallback = "Not available.") {
 
-        if (value === null || value === undefined) {
-            return fallback;
+    /* =====================================================
+       ESCAPE HTML
+    ====================================================== */
+
+    function escapeHTML(value) {
+
+        if (value === null ||
+            value === undefined) {
+
+            return "";
+
         }
+
+
+        return String(value)
+
+            .replace(/&/g, "&amp;")
+
+            .replace(/</g, "&lt;")
+
+            .replace(/>/g, "&gt;")
+
+            .replace(/"/g, "&quot;")
+
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+
+    /* =====================================================
+       FORMAT AI CONTENT
+    ====================================================== */
+
+    function formatContent(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+
+            return "Not available.";
+
+        }
+
+
+        if (typeof value === "string") {
+
+            return escapeHTML(value);
+
+        }
+
 
         if (Array.isArray(value)) {
-            return value.join("\n");
+
+            return value
+                .map(function (item) {
+
+                    if (
+                        typeof item === "object"
+                    ) {
+
+                        return escapeHTML(
+                            JSON.stringify(
+                                item,
+                                null,
+                                2
+                            )
+                        );
+
+                    }
+
+                    return escapeHTML(item);
+
+                })
+                .join("\n");
+
         }
+
 
         if (typeof value === "object") {
-            return JSON.stringify(value, null, 2);
+
+            return escapeHTML(
+                JSON.stringify(
+                    value,
+                    null,
+                    2
+                )
+            );
+
         }
 
-        const text = String(value).trim();
 
-        return text || fallback;
+        return escapeHTML(value);
+
     }
 
 
-    function setText(id, value, fallback = "Not available.") {
 
-        const element = document.getElementById(id);
-
-        if (!element) {
-            return;
-        }
-
-        element.textContent = safeText(value, fallback);
-    }
-
-
-    /* ============================================================
-       OVERALL AI ANALYSIS
-    ============================================================ */
+    /* =====================================================
+       RUN OVERALL AI ANALYSIS
+    ====================================================== */
 
     async function runFullAIAnalysis() {
 
-        const button = document.getElementById("fullAIButton");
+        const button =
+            document.getElementById(
+                "fullAIButton"
+            );
 
-        const selectedFiles = getSelectedFiles();
 
-        if (selectedFiles.length === 0) {
+        const selected =
+            Array.from(
+                document.querySelectorAll(
+                    ".file-checkbox:checked"
+                )
+            )
+            .map(function (checkbox) {
+
+                return checkbox.value;
+
+            });
+
+
+        if (selected.length === 0) {
 
             setStatus(
-                "Please select at least one repository file first.",
+                "aiStatus",
+                "<i class='fa-solid fa-circle-exclamation'></i> Please select at least one repository file first.",
                 "error"
             );
 
             return;
+
         }
+
 
         button.disabled = true;
 
+
+        button.innerHTML =
+            "<i class='fa-solid fa-spinner fa-spin'></i> Analyzing Repository...";
+
+
         setStatus(
-            "Reading selected files from GitHub...",
+            "aiStatus",
+            "<i class='fa-solid fa-spinner fa-spin'></i> Gitora AI is analyzing " +
+            selected.length +
+            " selected file(s)...",
             "loading"
         );
 
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "repository",
+            repositoryName
+        );
+
+
+        selected.forEach(function (path) {
+
+            formData.append(
+                "selected_files",
+                path
+            );
+
+        });
+
+
         try {
 
-            const formData = new FormData();
-
-            formData.append("repository", repositoryName);
-
-            selectedFiles.forEach(path => {
-                formData.append("selected_files", path);
-            });
-
-
-            setStatus(
-                "Sending repository context to the AI...",
-                "loading"
-            );
+            const response =
+                await fetch(
+                    "{{ url_for('main.ai_analyze') }}",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
 
 
-            const response = await fetch(
-                "{{ url_for('main.ai_analyze') }}",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
+            const data =
+                await readResponse(
+                    response
+                );
 
 
-            setStatus(
-                "AI is analyzing architecture, dependencies and project structure...",
-                "loading"
-            );
+            if (
+                !response.ok ||
+                data.error
+            ) {
+
+                throw new Error(
+                    data.error ||
+                    data.message ||
+                    "AI analysis failed."
+                );
+
+            }
 
 
-            const data = await readResponse(response);
-
-
-            const analysis =
+            latestAIAnalysis =
                 data.analysis ||
-                data.data ||
                 data;
 
 
-            window.gitoraAnalysis = analysis;
-
-
-            renderOverallAnalysis(analysis);
+            renderAIAnalysis(
+                latestAIAnalysis
+            );
 
 
             document
-                .getElementById("analysisContainer")
-                .classList.add("visible");
+                .getElementById(
+                    "analysisContainer"
+                )
+                .style.display =
+                "block";
 
 
             setStatus(
-                "AI repository analysis completed successfully.",
+                "aiStatus",
+                "<i class='fa-solid fa-circle-check'></i> AI analysis completed successfully.",
                 "success"
             );
 
 
             document
-                .getElementById("analysisContainer")
+                .getElementById(
+                    "analysisContainer"
+                )
                 .scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
+                    behavior: "smooth"
                 });
 
-        }
-        catch (error) {
 
-            console.error("Overall AI error:", error);
+            updatePDFData();
+
+
+        } catch (error) {
 
             setStatus(
-                error.message ||
-                "AI analysis failed.",
+                "aiStatus",
+                "<i class='fa-solid fa-circle-exclamation'></i> " +
+                escapeHTML(
+                    error.message
+                ),
                 "error"
             );
 
-        }
-        finally {
+        } finally {
 
             button.disabled = false;
 
+
+            button.innerHTML =
+                "<i class='fa-solid fa-wand-magic-sparkles'></i> Run Overall AI Analysis";
+
         }
+
     }
 
 
-    function renderOverallAnalysis(analysis) {
 
-        if (!analysis) {
-            throw new Error("AI returned an empty analysis.");
-        }
+    /* =====================================================
+       RENDER AI ANALYSIS
+    ====================================================== */
+
+    function renderAIAnalysis(
+        analysis
+    ) {
+
+        document.getElementById(
+            "projectSummary"
+        ).innerHTML =
+            formatContent(
+                analysis.project_summary
+            );
 
 
-        setText(
-            "projectSummary",
-            analysis.project_summary ||
-            analysis.summary ||
-            analysis.project_understanding
+        document.getElementById(
+            "technologyStack"
+        ).innerHTML =
+            formatContent(
+                analysis.technology_stack
+            );
+
+
+        document.getElementById(
+            "architecture"
+        ).innerHTML =
+            formatContent(
+                analysis.architecture
+            );
+
+
+        document.getElementById(
+            "dependencies"
+        ).innerHTML =
+            formatContent(
+                analysis.dependencies
+            );
+
+
+        document.getElementById(
+            "database"
+        ).innerHTML =
+            formatContent(
+                analysis.database
+            );
+
+
+        document.getElementById(
+            "authentication"
+        ).innerHTML =
+            formatContent(
+                analysis.authentication
+            );
+
+
+        document.getElementById(
+            "importantRequests"
+        ).innerHTML =
+            formatContent(
+                analysis.important_requests
+            );
+
+
+        document.getElementById(
+            "routing"
+        ).innerHTML =
+            formatContent(
+                analysis.routing
+            );
+
+
+        document.getElementById(
+            "runInstructions"
+        ).innerHTML =
+            formatContent(
+                analysis.run_instructions
+            );
+
+
+        document.getElementById(
+            "folderStructure"
+        ).innerHTML =
+            formatContent(
+                analysis.folder_structure
+            );
+
+
+        renderRebuildOptions(
+            analysis.rebuild_options
         );
 
 
-        setText(
-            "technologyStack",
-            analysis.technology_stack ||
-            analysis.tech_stack ||
-            analysis.technologies
+        renderFileAnalysis(
+            analysis.file_analysis
         );
 
-
-        setText(
-            "architecture",
-            analysis.architecture ||
-            analysis.architecture_overview
-        );
-
-
-        setText(
-            "dependencies",
-            analysis.dependencies
-        );
-
-
-        setText(
-            "database",
-            analysis.database
-        );
-
-
-        setText(
-            "authentication",
-            analysis.authentication
-        );
-
-
-        renderRequests(
-            analysis.important_requests ||
-            analysis.api_requests ||
-            analysis.important_api_requests
-        );
-
-
-        renderRebuildWays(
-            analysis.rebuild_options ||
-            analysis.rebuild_ways ||
-            analysis.three_ways_to_rebuild
-        );
     }
 
 
-    /* ============================================================
+
+    /* =====================================================
        REBUILD OPTIONS
-    ============================================================ */
+    ====================================================== */
 
-    function renderRebuildWays(options) {
+    function renderRebuildOptions(
+        options
+    ) {
 
         const container =
-            document.getElementById("rebuildWays");
+            document.getElementById(
+                "rebuildOptions"
+            );
 
-        if (!container) {
-            return;
-        }
+
+        if (!container) return;
+
 
         container.innerHTML = "";
 
 
-        if (!Array.isArray(options) || options.length === 0) {
+        if (!options) {
 
             container.innerHTML =
-                '<div class="empty-state">' +
-                'No rebuild strategies were returned by the AI.' +
-                '</div>';
+                "<div class='analysis-content'>No rebuild options available.</div>";
 
             return;
+
         }
 
 
-        options.slice(0, 3).forEach((option, index) => {
+        if (!Array.isArray(options)) {
 
-            let title = "";
-            let description = "";
-            let technology = "";
-            let time = "";
+            options = [
+                options
+            ];
 
-            if (typeof option === "string") {
-
-                title = `Approach ${index + 1}`;
-                description = option;
-
-            }
-            else {
-
-                title =
-                    option.title ||
-                    option.name ||
-                    `Approach ${index + 1}`;
-
-                description =
-                    option.description ||
-                    option.approach ||
-                    option.summary ||
-                    "";
-
-                technology =
-                    option.technology ||
-                    option.tech_stack ||
-                    option.stack ||
-                    "";
-
-                time =
-                    option.estimated_time ||
-                    option.time ||
-                    "";
-            }
+        }
 
 
-            const card = document.createElement("article");
+        options.forEach(
+            function (option, index) {
 
-            card.className = "rebuild-card";
+                const card =
+                    document.createElement(
+                        "div"
+                    );
 
 
-            card.innerHTML = `
-                <div class="rebuild-number">
-                    ${index + 1}
-                </div>
+                card.className =
+                    "rebuild-card";
 
-                <h3></h3>
 
-                <p></p>
+                if (
+                    typeof option ===
+                    "object"
+                ) {
 
-                ${
-                    technology
-                    ? `<div class="rebuild-detail">
-                            <strong>Technology:</strong>
-                            ${escapeHtml(safeText(technology))}
-                       </div>`
-                    : ""
+                    const title =
+                        option.title ||
+                        option.name ||
+                        "Approach " +
+                        (index + 1);
+
+
+                    const content =
+                        option.description ||
+                        option.details ||
+                        option.approach ||
+                        JSON.stringify(
+                            option,
+                            null,
+                            2
+                        );
+
+
+                    card.innerHTML =
+
+                        "<h4>" +
+
+                        escapeHTML(
+                            title
+                        ) +
+
+                        "</h4>" +
+
+                        "<div class='analysis-content'>" +
+
+                        formatContent(
+                            content
+                        ) +
+
+                        "</div>";
+
+                } else {
+
+                    card.innerHTML =
+
+                        "<h4>Approach " +
+
+                        (index + 1) +
+
+                        "</h4>" +
+
+                        "<div class='analysis-content'>" +
+
+                        formatContent(
+                            option
+                        ) +
+
+                        "</div>";
+
                 }
 
-                ${
-                    time
-                    ? `<div class="rebuild-detail">
-                            <strong>Estimated Time:</strong>
-                            ${escapeHtml(safeText(time))}
-                       </div>`
-                    : ""
-                }
-            `;
 
+                container.appendChild(
+                    card
+                );
 
-            card.querySelector("h3").textContent =
-                safeText(title, `Approach ${index + 1}`);
+            }
+        );
 
-            card.querySelector("p").textContent =
-                safeText(description);
-
-
-            container.appendChild(card);
-
-        });
     }
 
 
-    /* ============================================================
-       API REQUESTS
-    ============================================================ */
 
-    function renderRequests(requests) {
+    /* =====================================================
+       FILE ANALYSIS
+    ====================================================== */
+
+    function renderFileAnalysis(
+        files
+    ) {
 
         const container =
-            document.getElementById("importantRequests");
+            document.getElementById(
+                "fileAnalysisList"
+            );
 
-        if (!container) {
-            return;
-        }
+
+        if (!container) return;
+
 
         container.innerHTML = "";
 
 
-        if (!Array.isArray(requests) || requests.length === 0) {
-
-            container.innerHTML =
-                '<div class="empty-state">' +
-                'No important API requests were identified.' +
-                '</div>';
+        if (!files) {
 
             return;
+
         }
 
 
-        requests.forEach(request => {
+        if (Array.isArray(files)) {
 
-            let method = "API";
-            let endpoint = "";
-            let description = "";
+            files.forEach(
+                function (file, index) {
 
+                    createFileAnalysisItem(
+                        container,
+                        file,
+                        index
+                    );
 
-            if (typeof request === "string") {
+                }
+            );
 
-                endpoint = request;
+            return;
 
-            }
-            else {
-
-                method =
-                    request.method ||
-                    request.http_method ||
-                    "API";
-
-                endpoint =
-                    request.endpoint ||
-                    request.url ||
-                    request.path ||
-                    "";
-
-                description =
-                    request.description ||
-                    request.purpose ||
-                    request.explanation ||
-                    "";
-            }
+        }
 
 
-            const card =
-                document.createElement("div");
+        if (
+            typeof files === "object"
+        ) {
 
-            card.className = "request-card";
+            Object.keys(files).forEach(
+                function (path, index) {
 
+                    createFileAnalysisItem(
+                        container,
+                        {
+                            path: path,
+                            analysis:
+                                files[path]
+                        },
+                        index
+                    );
 
-            const methodSpan =
-                document.createElement("span");
+                }
+            );
 
-            methodSpan.className = "request-method";
-            methodSpan.textContent =
-                safeText(method, "API");
+        }
 
-
-            const endpointSpan =
-                document.createElement("span");
-
-            endpointSpan.className = "request-endpoint";
-            endpointSpan.textContent =
-                safeText(endpoint, "Endpoint not specified.");
-
-
-            card.appendChild(methodSpan);
-            card.appendChild(endpointSpan);
-
-
-            if (description) {
-
-                const desc =
-                    document.createElement("div");
-
-                desc.className =
-                    "request-description";
-
-                desc.textContent =
-                    safeText(description);
-
-                card.appendChild(desc);
-            }
-
-
-            container.appendChild(card);
-
-        });
     }
 
 
-    /* ============================================================
-       SINGLE FILE ANALYSIS
-    ============================================================ */
 
-    async function analyzeSingleFile(button) {
+    function createFileAnalysisItem(
+        container,
+        file,
+        index
+    ) {
 
-        const card =
-            button.closest(".file-analysis-card");
-
-        if (!card) {
-            return;
-        }
-
-
-        const filePath =
-            card.dataset.filePath;
+        const item =
+            document.createElement(
+                "div"
+            );
 
 
-        if (!filePath) {
-            return;
-        }
+        item.className =
+            "file-analysis-item";
 
+
+        const path =
+            file.path ||
+            file.file ||
+            file.filename ||
+            "Selected File " +
+            (index + 1);
+
+
+        const explanation =
+            file.analysis ||
+            file.explanation ||
+            file.summary ||
+            file.description ||
+            file;
+
+
+        item.innerHTML =
+
+            "<div class='file-analysis-header'>" +
+
+                "<strong>" +
+
+                    escapeHTML(path) +
+
+                "</strong>" +
+
+                "<button type='button' " +
+
+                    "class='secondary-action' " +
+
+                    "onclick='toggleFileAnalysis(this)'>" +
+
+                    "View" +
+
+                "</button>" +
+
+            "</div>" +
+
+
+            "<div class='file-analysis-body'>" +
+
+                "<div class='analysis-content'>" +
+
+                    formatContent(
+                        explanation
+                    ) +
+
+                "</div>" +
+
+                "<button type='button' " +
+
+                    "class='primary-btn' " +
+
+                    "style='margin-top:12px;' " +
+
+                    "onclick='analyzeSingleFile(\"" +
+
+                        escapeForJS(path) +
+
+                    "\")'>" +
+
+                    "<i class='fa-solid fa-brain'></i> " +
+
+                    "Analyze This File" +
+
+                "</button>" +
+
+                "<div id='single-file-" +
+
+                    index +
+
+                    "' " +
+
+                    "class='analysis-content' " +
+
+                    "style='margin-top:12px;'>" +
+
+                "</div>" +
+
+            "</div>";
+
+
+        container.appendChild(
+            item
+        );
+
+    }
+
+
+
+    function toggleFileAnalysis(
+        button
+    ) {
 
         const body =
-            card.querySelector(".file-analysis-body");
+            button
+                .closest(
+                    ".file-analysis-item"
+                )
+                .querySelector(
+                    ".file-analysis-body"
+                );
 
 
-        button.disabled = true;
+        body.classList.toggle(
+            "show"
+        );
 
-        button.innerHTML =
-            '<div class="spinner"></div> Analyzing...';
 
+        button.textContent =
+            body.classList.contains(
+                "show"
+            )
+                ? "Hide"
+                : "View";
+
+    }
+
+
+
+    function escapeForJS(
+        value
+    ) {
+
+        return String(value)
+
+            .replace(/\\/g, "\\\\")
+
+            .replace(/"/g, '\\"')
+
+            .replace(/'/g, "\\'")
+
+            .replace(/\n/g, "\\n")
+
+            .replace(/\r/g, "\\r");
+
+    }
+
+
+
+    /* =====================================================
+       SINGLE FILE AI ANALYSIS
+    ====================================================== */
+
+    async function analyzeSingleFile(
+        filePath
+    ) {
 
         try {
 
             const formData =
                 new FormData();
 
+
             formData.append(
                 "repository",
                 repositoryName
             );
+
 
             formData.append(
                 "file_path",
@@ -2122,122 +3073,59 @@ title="Back to top">
 
 
             const data =
-                await readResponse(response);
+                await readResponse(
+                    response
+                );
 
 
-            const analysis =
-                data.analysis ||
-                data.data ||
-                data;
+            if (
+                !response.ok ||
+                data.error
+            ) {
 
+                throw new Error(
+                    data.error ||
+                    data.message ||
+                    "File analysis failed."
+                );
 
-            fillFileAnalysis(
-                card,
-                analysis
-            );
-
-
-            body.classList.add("visible");
-
-
-            button.innerHTML =
-                '<i class="fa-solid fa-rotate"></i> Re-analyze';
-
-
-        }
-        catch (error) {
-
-            console.error(
-                "Single file AI error:",
-                error
-            );
+            }
 
 
             alert(
-                error.message ||
-                "Unable to analyze this file."
+                "File analysis completed for " +
+                filePath
             );
 
 
-            button.innerHTML =
-                '<i class="fa-solid fa-magnifying-glass"></i> Analyze File';
+        } catch (error) {
+
+            alert(
+                error.message
+            );
 
         }
-        finally {
 
-            button.disabled = false;
-
-        }
     }
 
 
-    function fillFileAnalysis(card, analysis) {
 
-        const values = {
+    /* =====================================================
+       REPOSITORY CHAT
+    ====================================================== */
 
-            ".purpose":
-                analysis.purpose ||
-                analysis.summary ||
-                analysis.what_it_does,
-
-            ".how-it-works":
-                analysis.how_it_works ||
-                analysis.howItWorks ||
-                analysis.explanation,
-
-            ".important-functions":
-                analysis.important_functions ||
-                analysis.functions ||
-                analysis.key_functions,
-
-            ".dependencies":
-                analysis.dependencies,
-
-            ".connections":
-                analysis.connections ||
-                analysis.related_files ||
-                analysis.integrations,
-
-            ".improvements":
-                analysis.improvements ||
-                analysis.suggestions ||
-                analysis.improvement_suggestions
-        };
-
-
-        Object.entries(values).forEach(
-            ([selector, value]) => {
-
-                const element =
-                    card.querySelector(selector);
-
-                if (element) {
-                    element.textContent =
-                        safeText(value);
-                }
-
-            }
-        );
-    }
-
-
-    /* ============================================================
-       ASK GITORA AI
-    ============================================================ */
-
-    async function askGitoraAI(event) {
-
-        event.preventDefault();
-
+    async function askRepositoryAI() {
 
         const input =
-            document.getElementById("chatQuestion");
+            document.getElementById(
+                "chatInput"
+            );
 
-        const button =
-            document.getElementById("chatButton");
 
-        const answer =
-            document.getElementById("chatAnswer");
+        const messages =
+            document.getElementById(
+                "chatMessages"
+            );
 
 
         const question =
@@ -2245,35 +3133,79 @@ title="Back to top">
 
 
         if (!question) {
+
             return;
+
         }
 
 
-        button.disabled = true;
+        messages.innerHTML +=
 
-        button.innerHTML =
-            '<div class="spinner"></div> Thinking...';
+            "<div class='chat-message chat-user'>" +
+
+            "<strong>You</strong><br>" +
+
+            escapeHTML(question) +
+
+            "</div>";
 
 
-        answer.classList.add("visible");
+        input.value = "";
 
-        answer.textContent =
-            "Gitora AI is analyzing the repository context...";
+
+        messages.innerHTML +=
+
+            "<div class='chat-message chat-ai' id='chatLoading'>" +
+
+            "<i class='fa-solid fa-spinner fa-spin'></i> Gitora AI is thinking..." +
+
+            "</div>";
+
+
+        messages.scrollTop =
+            messages.scrollHeight;
 
 
         try {
 
+            const selected =
+                Array.from(
+                    document.querySelectorAll(
+                        ".file-checkbox:checked"
+                    )
+                )
+                .map(function (checkbox) {
+
+                    return checkbox.value;
+
+                });
+
+
             const formData =
                 new FormData();
+
 
             formData.append(
                 "repository",
                 repositoryName
             );
 
+
             formData.append(
                 "question",
                 question
+            );
+
+
+            selected.forEach(
+                function (path) {
+
+                    formData.append(
+                        "selected_files",
+                        path
+                    );
+
+                }
             );
 
 
@@ -2288,101 +3220,209 @@ title="Back to top">
 
 
             const data =
-                await readResponse(response);
-
-
-            answer.textContent =
-                safeText(
-                    data.answer ||
-                    data.response ||
-                    data.message ||
-                    data.result,
-                    "AI did not return an answer."
+                await readResponse(
+                    response
                 );
 
-        }
-        catch (error) {
 
-            console.error(
-                "Chat AI error:",
-                error
+            const loading =
+                document.getElementById(
+                    "chatLoading"
+                );
+
+
+            if (loading) {
+
+                loading.remove();
+
+            }
+
+
+            if (
+                !response.ok ||
+                data.error
+            ) {
+
+                throw new Error(
+                    data.error ||
+                    data.message ||
+                    "Unable to get AI response."
+                );
+
+            }
+
+
+            const answer =
+                data.answer ||
+                data.response ||
+                data.message ||
+                "No answer returned.";
+
+
+            messages.innerHTML +=
+
+                "<div class='chat-message chat-ai'>" +
+
+                "<strong>Gitora AI</strong><br>" +
+
+                formatContent(
+                    answer
+                ) +
+
+                "</div>";
+
+
+            messages.scrollTop =
+                messages.scrollHeight;
+
+
+        } catch (error) {
+
+            const loading =
+                document.getElementById(
+                    "chatLoading"
+                );
+
+
+            if (loading) {
+
+                loading.remove();
+
+            }
+
+
+            messages.innerHTML +=
+
+                "<div class='chat-message chat-ai'>" +
+
+                "<strong>Error</strong><br>" +
+
+                escapeHTML(
+                    error.message
+                ) +
+
+                "</div>";
+
+        }
+
+    }
+
+
+
+    /* =====================================================
+       ENTER KEY FOR CHAT
+    ====================================================== */
+
+    const chatInput =
+        document.getElementById(
+            "chatInput"
+        );
+
+
+    if (chatInput) {
+
+        chatInput.addEventListener(
+            "keydown",
+            function (event) {
+
+                if (
+                    event.key === "Enter"
+                ) {
+
+                    event.preventDefault();
+
+                    askRepositoryAI();
+
+                }
+
+            }
+        );
+
+    }
+
+
+
+    /* =====================================================
+       PDF DATA
+    ====================================================== */
+
+    function updatePDFData() {
+
+        const selected =
+            Array.from(
+                document.querySelectorAll(
+                    ".file-checkbox:checked"
+                )
+            )
+            .map(function (checkbox) {
+
+                return checkbox.value;
+
+            });
+
+
+        const selectedInput =
+            document.getElementById(
+                "pdfSelectedFiles"
             );
 
 
-            answer.textContent =
-                error.message ||
-                "Unable to get an AI response.";
+        const analysisInput =
+            document.getElementById(
+                "pdfAIAnalysis"
+            );
 
-            answer.classList.add("error-text");
+
+        if (selectedInput) {
+
+            selectedInput.value =
+                JSON.stringify(
+                    selected
+                );
 
         }
-        finally {
 
-            button.disabled = false;
 
-            button.innerHTML =
-                '<i class="fa-solid fa-paper-plane"></i> Ask AI';
+        if (analysisInput) {
+
+            analysisInput.value =
+                JSON.stringify(
+                    latestAIAnalysis || {}
+                );
 
         }
+
     }
 
 
-    /* ============================================================
-       HTML ESCAPE
-    ============================================================ */
+    document.addEventListener(
+        "change",
+        function (event) {
 
-    function escapeHtml(value) {
+            if (
+                event.target.classList.contains(
+                    "file-checkbox"
+                )
+            ) {
 
-        return String(value)
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
-    }
+                updatePDFData();
 
-
-    /* ============================================================
-       BACK TO TOP
-    ============================================================ */
-
-    const topBtn =
-        document.getElementById("topBtn");
-
-
-    window.addEventListener(
-        "scroll",
-        () => {
-
-            if (window.scrollY > 300) {
-                topBtn.style.display = "grid";
-            }
-            else {
-                topBtn.style.display = "none";
             }
 
         }
     );
 
 
-    topBtn.addEventListener(
-        "click",
-        () => {
 
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
+    /* =====================================================
+       INITIAL PDF DATA
+    ====================================================== */
 
-        }
-    );
+    updatePDFData();
+
+</script>
 
 
-    /* ============================================================
-       INITIAL STATE
-    ============================================================ */
+</body>
 
-    updateSelectedCount();
-
-</script></body>
 </html>
